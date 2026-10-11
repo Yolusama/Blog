@@ -1,0 +1,254 @@
+﻿using System.Reflection;
+using Blog.Domain.ArticleDomain.Entity;
+using Blog.Domain.UserDomain.Entity;
+using Blog.Shared;
+using Microsoft.EntityFrameworkCore;
+
+namespace Blog.Infrastructure;
+
+public partial class SysDbContext : DbContext
+{
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
+
+        builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
+        #region 用户表迁移
+
+        builder.Entity<User>().ToTable(nameof(User), t => t.HasComment("用户表"));
+        builder.Entity<User>().HasKey(u => u.Id);
+        builder.Entity<User>().Property(u => u.Id)
+            .UseMySqlIdentityColumn()
+            .HasComment("用户Id")
+            .HasColumnType("int");
+        builder.Entity<User>().Property(u => u.Email)
+            .HasMaxLength(100)
+            .IsRequired()
+            .HasComment("邮箱");
+        builder.Entity<User>().HasIndex(u => u.Email).IsUnique();
+        builder.Entity<User>().Property(u => u.Password)
+            .IsRequired()
+            .HasMaxLength(256)
+            .HasComment("密码");
+        builder.Entity<User>().Property(u => u.Nickname)
+            .IsRequired()
+            .HasMaxLength(64)
+            .HasComment("昵称");
+        builder.Entity<User>().Property(u => u.Avatar)
+            .HasMaxLength(50)
+            .HasComment("头像");
+        builder.Entity<User>().Property(u => u.Gender)
+            .HasDefaultValue(0)
+            .HasComment("性别");
+        builder.Entity<User>().Property(u => u.SimpleIntroduction)
+            .IsRequired(false)
+            .HasMaxLength(1000)
+            .HasComment("简介");
+        builder.Entity<User>().Property(u => u.BirthDay)
+            .HasColumnType("date")
+            .HasComment("生日");
+        builder.Entity<User>().Property(u => u.Region)
+            .IsRequired(false)
+            .HasMaxLength(128)
+            .HasComment("地区");
+        builder.Entity<User>().Property(u => u.CreateTime)
+            .HasColumnType("datetime")
+            .HasComment("创建时间");
+        builder.Entity<User>().Property(u => u.LastLoginTime)
+            .HasColumnType("datetime")
+            .HasComment("上次登录时间");
+
+        #endregion
+
+        #region 文章表迁移
+
+        builder.Entity<Article>().ToTable(nameof(Article),
+            t => t.HasComment("文章表"));
+
+        builder.Entity<Article>()
+            .HasKey(a => a.Id);
+        builder.Entity<Article>()
+            .Property(a => a.Id)
+            .HasMaxLength(64)
+            .HasComment("文章Id");
+        builder.Entity<Article>()
+            .Property(a => a.Title)
+            .HasMaxLength(256)
+            .HasComment("标题");
+        builder.Entity<Article>()
+            .Property(a => a.Content)
+            .HasMaxLength(100)
+            .IsRequired(false)
+            .HasComment("文章最终内容指向源");
+        builder.Entity<Article>()
+            .Property(a => a.Abstract)
+            .IsRequired(false)
+            .HasMaxLength(256);
+        builder.Entity<Article>()
+            .Property(a => a.IsDraft)
+            .HasComment("是否为草稿")
+            .HasColumnType("tinyint(1)");
+        builder.Entity<Article>()
+            .Property(a => a.Abstract)
+            .HasMaxLength(128)
+            .IsRequired(false)
+            .HasComment("摘要");
+        builder.Entity<Article>()
+            .Property(a => a.CreateTime)
+            .HasComment("创建时间")
+            .HasColumnType("datetime");
+        builder.Entity<Article>()
+            .Property(a => a.UpdateTime)
+            .HasComment("更新时间")
+            .HasColumnType("datetime");
+        builder.Entity<Article>()
+            .Property(a => a.UploadTime)
+            .HasComment("正式上传时间")
+            .HasColumnType("datetime");
+        builder.Entity<Article>()
+            .Property(a => a.AuthorId)
+            .HasComment("作者Id")
+            .HasColumnType("int");
+
+        builder.Entity<Article>()
+            .HasIndex(e => e.AuthorId)
+            .HasDatabaseName("IDX_Article_AuthorId");
+        builder.Entity<Article>()
+            .HasIndex(e => e.CreateTime)
+            .HasDatabaseName("IDX_Article_CreateTime");
+        builder.Entity<Article>()
+            .HasIndex(e => e.IsDraft)
+            .HasDatabaseName("IDX_Article_IsDraft");
+
+        #endregion
+
+        #region 文章统计表迁移
+
+        builder.Entity<ArticleOptions>().ToTable(nameof(ArticleOptions), t =>
+            t.HasComment("文章统计选项表"));
+
+        builder.Entity<ArticleOptions>()
+            .HasKey(x => x.Id);
+        builder.Entity<ArticleOptions>()
+            .Property(x => x.Id)
+            .HasColumnType("bigint")
+            .HasComment("文章统计选项Id");
+
+        builder.Entity<ArticleOptions>()
+            .Property(x => x.ViewCount)
+            .IsRequired()
+            .HasComment("查看数");
+
+        builder.Entity<ArticleOptions>().Property(x => x.LikeCount)
+            .HasDefaultValue(0)
+            .HasComment("点赞数");
+
+        builder.Entity<ArticleOptions>().Property(x => x.DislikeCount)
+            .HasDefaultValue(0)
+            .IsRequired()
+            .HasComment("点踩数");
+
+        builder.Entity<ArticleOptions>()
+            .Property(x => x.ArticleId)
+            .IsRequired()
+            .HasMaxLength(64)
+            .HasComment("文章Id");
+
+        builder.Entity<ArticleOptions>()
+            .Property(x => x.ArticleId)
+            .HasMaxLength(64);
+
+        builder.Entity<ArticleOptions>()
+            .HasIndex(x => x.ArticleId)
+            .IsUnique();
+
+        #endregion
+
+        #region 文字评论表迁移
+
+        builder.Entity<ArticleComment>()
+            .ToTable(nameof(ArticleComment), t => t.HasComment("文章评论表"));
+
+        builder.Entity<ArticleComment>()
+            .HasKey(x => x.Id);
+        builder.Entity<ArticleComment>()
+            .Property(x => x.Id)
+            .UseMySqlIdentityColumn()
+            .HasColumnType("bigint")
+            .HasComment("文章评论Id");
+        builder.Entity<ArticleComment>().Property(x => x.Content)
+            .IsRequired()
+            .HasMaxLength(2000)
+            .HasComment("内容");
+        builder.Entity<ArticleComment>()
+            .Property(x => x.CreateTime) 
+            .HasComment("创建时间");
+        builder.Entity<ArticleComment>().Property(x => x.LikeCount)
+            .IsRequired()
+            .HasComment("喜欢数");
+        builder.Entity<ArticleComment>()
+            .Property(x => x.DislikeCount)
+            .IsRequired()
+            .HasComment("讨厌数");
+        builder.Entity<ArticleComment>()
+            .Property(x => x.ArticleId)
+            .IsRequired()
+            .HasMaxLength(64)
+            .HasComment("文章Id");
+        builder.Entity<ArticleComment>().Property(x => x.RootId)
+            .IsRequired()
+            .HasDefaultValue(Constants.EOF)
+            .HasComment("根ID（指向根评论的 Id，根评论为 -1）");
+
+        builder.Entity<ArticleComment>()
+            .HasIndex(x => x.RootId)
+            .HasDatabaseName("IX_ArticleComment_RootId");
+        builder.Entity<ArticleComment>()
+            .HasIndex(x => new { x.RootId, x.CreateTime })
+            .HasDatabaseName("IX_ArticleComment_RootId_CreateTime");
+        builder.Entity<ArticleComment>()
+            .HasIndex(x => x.ArticleId)
+            .IsUnique()
+            .HasDatabaseName("IX_ArticleComment_ArticleId");
+
+        #endregion
+
+        #region 文章资源表迁移
+
+        builder.Entity<ArticleSource>().ToTable(nameof(ArticleSource),
+            t => t.HasComment("文章内资源表"));
+        
+        builder.Entity<ArticleSource>()
+            .HasKey(x => x.Id);
+
+        builder.Entity<ArticleSource>()
+            .Property(x => x.Id)
+            .UseMySqlIdentityColumn()
+            .HasColumnType("bigint");
+        builder.Entity<ArticleSource>().Property(x => x.FileName)
+            .HasMaxLength(255)
+            .IsRequired(false) // string? -> 可空
+            .HasComment("文件名");
+        builder.Entity<ArticleSource>().Property(x => x.ArticleId)
+            .IsRequired()
+            .HasMaxLength(64) // 与 Article 主键长度一致
+            .HasComment("文章Id");
+        builder.Entity<ArticleSource>().Property(x => x.Url)
+            .HasMaxLength(2000) // 按需调整；超长可去掉这行用 nvarchar(max)
+            .HasComment("源地址/其他资源链接");
+        builder.Entity<ArticleSource>().Property(x => x.IsHyperLink)
+            .HasDefaultValue(false)
+            .IsRequired()
+            .HasComment("是否是超链接");
+        builder.Entity<ArticleSource>()
+            .Property(x => x.CreateTime) // SQL Server；MySQL 用 CURRENT_TIMESTAMP
+            .HasComment("创建时间");
+        builder.Entity<ArticleSource>().HasIndex(x => x.ArticleId)
+            .HasDatabaseName("IX_ArticleSource_ArticleId");
+        builder.Entity<ArticleSource>()
+            .HasIndex(x => x.CreateTime)
+            .HasDatabaseName("IX_ArticleSourceCreateTime");
+        #endregion
+    }
+}
