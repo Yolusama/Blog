@@ -55,7 +55,8 @@ builder.Services.AddDbContext<SysDbContext>(options =>
 });
 builder.Services.AddHostedService<DomainEventWatcher>();
 
-builder.DoAutoServiceRegister();
+builder.Services.AutoServiceRegister();
+
 
 var app = builder.Build();
 

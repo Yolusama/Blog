@@ -1,4 +1,4 @@
-using Blog.Domain.UserDomain.Entity;
+using Blog.Shared.Functional;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -8,11 +8,12 @@ public partial class SysDbContext : DbContext
 {
     private readonly IMemoryCache _cache;
     private readonly List<string> _cacheKeys;
+    private readonly string _specificKeyPrefix = RandomGenerator.Guid();
 
     public DbSet<TE> DbSet<TE>() where TE : class
     {
         var type = typeof(TE);
-        var key = $"{GetType().Name}_{type.Name}";
+        var key = $"{_specificKeyPrefix}_{GetType().Name}_{type.Name}";
         if (!_cache.TryGetValue(key, out DbSet<TE> dbSet))
         {
             dbSet = Set<TE>();

@@ -75,7 +75,7 @@ public static class ExpansionService
     /// 使用自动注入
     /// </summary>
     /// <param name="app"></param>
-    public static void DoAutoServiceRegister(this WebApplicationBuilder builder)
+    public static void AutoServiceRegister(this IServiceCollection services)
     {
         var assembly = Assembly.GetExecutingAssembly();
         var types = assembly.GetTypes()
@@ -87,7 +87,7 @@ public static class ExpansionService
         {
             var interfaceType = interfaces.FirstOrDefault(t => t.IsAssignableFrom(type));
             var implAttr = type.GetCustomAttribute<ServiceInjectionAttribute>();
-            builder.Services.Add(interfaceType != null
+            services.Add(interfaceType != null
                 ? new ServiceDescriptor(interfaceType, type, implAttr.ServiceLifetime)
                 : new ServiceDescriptor(type, implAttr.ServiceLifetime));
         }

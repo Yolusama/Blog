@@ -1,11 +1,10 @@
 ﻿using Blog.Infrastructure.Interfaces;
 using Blog.Shared;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 
 namespace Blog.Infrastructure.Repository;
 
-public class Repository<T,TKey>(SysDbContext context) : IRepository<T, TKey> where  T : AggregateRoot<TKey> 
+public class Repository<T,TKey>(SysDbContext context) : IRepository<T, TKey> where  T : AggregateRoot<TKey>
 {
     public IQueryable<T> All => context.DbSet<T>().AsQueryable();
     public IQueryable<T> NoTracking => context.DbSet<T>().AsNoTracking();
