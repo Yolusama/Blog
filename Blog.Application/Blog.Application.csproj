@@ -18,11 +18,16 @@
 
     <ItemGroup>
       <None Remove="Blog.Application.http" />
+      <None Remove="Properties\launchSettings.json" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Blog.Domain\Blog.Domain.csproj" />
       <ProjectReference Include="..\Blog.Infrastructure\Blog.Infrastructure.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Properties\" />
     </ItemGroup>
 
 </Project>

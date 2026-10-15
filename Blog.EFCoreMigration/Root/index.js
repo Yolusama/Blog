@@ -1,6 +1,8 @@
 ﻿const apiClient = axios.create({
-    baseURL: "/api/migrations"
+    baseURL: "http://localhost:5576"
 });
+
+const apiUrl = "/api/migrations";
 
 const tableBody = document.getElementById("migrationTableBody");
 const addBtn = document.getElementById("addMigrationBtn");
@@ -8,16 +10,19 @@ const modalElement = document.getElementById("migrationModal");
 const modalTitle = document.getElementById("modalTitle");
 const migrationForm = document.getElementById("migrationForm");
 const migrationNameInput = document.getElementById("migrationName");
-const migrationFileNameInput = document.getElementById("migrationFileName");
 const pageInfo = document.getElementById("pageInfo");
 const paginationElement = document.getElementById("pagination");
 const pageSizeSelect = document.getElementById("pageSizeSelect");
+const searchInput = document.getElementById("searchInput");
+const searchBtn = document.getElementById("searchBtn");
 const migrationModal = new bootstrap.Modal(modalElement);
 
 let editingId = null;
-let allMigrations = [];
+let rows = [];
+let totalCount = 0;
 let currentPage = 1;
 let pageSize = Number(pageSizeSelect.value);
+let searchKey = "";
 
 function escapeHtml(value) {
     return String(value ?? "")
@@ -35,18 +40,26 @@ function formatDateTime(value) {
     return date.toLocaleString();
 }
 
-function getTotalPages() {
-    return Math.max(1, Math.ceil(allMigrations.length / pageSize));
+/**
+ * 统一处理非查询接口的响应结果 { success, message, data }
+ * 成功：优先展示服务端返回的 message，缺失时用 fallback
+ * 失败：展示服务端返回的错误信息
+ * 返回是否成功
+ */
+function showResultMessage(result, fallback) {
+    if (result?.success) {
+        Message.success(result.message || fallback || "操作成功");
+        return true;
+    }
+    Message.error(result?.message || "操作失败，请稍后重试。");
+    return false;
 }
 
-function getPagedRows() {
-    const start = (currentPage - 1) * pageSize;
-    const end = start + pageSize;
-    return allMigrations.slice(start, end);
+function getTotalPages() {
+    return Math.max(1, Math.ceil(totalCount / pageSize));
 }
 
 function renderRows() {
-    const rows = getPagedRows();
     if (!rows.length) {
         tableBody.innerHTML = "<tr><td colspan=\"5\" class=\"text-center py-4 text-muted\">暂无数据</td></tr>";
         return;
@@ -60,7 +73,7 @@ function renderRows() {
             <td>${escapeHtml(item.fileName)}</td>
             <td class="text-center action-buttons">
                 <button type="button" class="btn btn-sm btn-outline-primary me-2 js-edit" data-id="${escapeHtml(item.id)}">更新</button>
-                <button type="button" class="btn btn-sm btn-outline-danger js-delete" data-id="${escapeHtml(item.id)}">删除</button>
+                <button type="button" class="btn btn-sm btn-outline-danger js-delete" data-id="${escapeHtml(item.id)}" data-name="${escapeHtml(item.name)}">删除</button>
             </td>
         </tr>
     `).join("");
@@ -79,17 +92,12 @@ function createPaginationItem(label, page, disabled, active) {
 }
 
 function renderPagination() {
-    const totalItems = allMigrations.length;
     const totalPages = getTotalPages();
-    if (currentPage > totalPages) {
-        currentPage = totalPages;
-    }
+    const startIndex = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const endIndex = Math.min(currentPage * pageSize, totalCount);
+    pageInfo.textContent = `共 ${totalCount} 条，第 ${currentPage}/${totalPages} 页（${startIndex}-${endIndex}）`;
 
-    const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-    const endIndex = Math.min(currentPage * pageSize, totalItems);
-    pageInfo.textContent = `共 ${totalItems} 条，第 ${currentPage}/${totalPages} 页（${startIndex}-${endIndex}）`;
-
-    if (totalItems === 0) {
+    if (totalCount === 0) {
         paginationElement.innerHTML = "";
         return;
     }
@@ -117,15 +125,30 @@ function renderTable() {
 
 async function loadMigrations() {
     try {
-        const response = await apiClient.get("/");
-        allMigrations = Array.isArray(response.data) ? response.data : [];
-        currentPage = 1;
+        const response = await apiClient.get(apiUrl, {
+            params: {
+                search: searchKey,
+                page: currentPage,
+                pageSize: pageSize
+            }
+        });
+        const result = response.data?.data ?? {};
+        rows = Array.isArray(result.data) ? result.data : [];
+        totalCount = Number(result.total ?? 0);
+
+        const totalPages = getTotalPages();
+        if (currentPage > totalPages) {
+            currentPage = totalPages;
+            return loadMigrations();
+        }
+
         renderTable();
     } catch (error) {
         console.error(error);
         tableBody.innerHTML = "<tr><td colspan=\"5\" class=\"text-center py-4 text-danger\">加载失败</td></tr>";
         pageInfo.textContent = "加载失败";
         paginationElement.innerHTML = "";
+        Message.error("加载迁移列表失败，请稍后重试。");
     }
 }
 
@@ -140,53 +163,74 @@ function openEditModal(row) {
     editingId = row.id;
     modalTitle.textContent = "更新迁移";
     migrationNameInput.value = row.name ?? "";
-    migrationFileNameInput.value = row.fileName ?? "";
     migrationModal.show();
 }
 
 async function createMigration(payload) {
-    await apiClient.post("/", payload);
+    const result = await apiClient.post(apiUrl, payload);
+    return result.data;
 }
 
 async function updateMigration(id, payload) {
-    await apiClient.put(`/${encodeURIComponent(id)}`, payload);
+    const result = await apiClient.put(`${apiUrl}/${encodeURIComponent(id)}`, payload);
+    return result.data;
 }
 
-async function deleteMigration(id) {
-    await apiClient.delete(`/${encodeURIComponent(id)}`);
+async function deleteMigration(id, name) {
+    const result = await apiClient.delete(`${apiUrl}/${encodeURIComponent(id)}`, {
+        params: { name: name ?? "" }
+    });
+    return result.data;
 }
 
 addBtn.addEventListener("click", openCreateModal);
 
-pageSizeSelect.addEventListener("change", () => {
+pageSizeSelect.addEventListener("change", async () => {
     pageSize = Number(pageSizeSelect.value);
     currentPage = 1;
-    renderTable();
+    await loadMigrations();
+});
+
+async function applySearch() {
+    searchKey = searchInput.value.trim();
+    currentPage = 1;
+    await loadMigrations();
+}
+
+searchBtn.addEventListener("click", applySearch);
+
+searchInput.addEventListener("keydown", async (event) => {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        await applySearch();
+    }
 });
 
 migrationForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const payload = {
-        name: migrationNameInput.value.trim(),
-        fileName: migrationFileNameInput.value.trim()
+        id: editingId ?? "",
+        name : migrationNameInput.value
     };
 
-    if (!payload.name || !payload.fileName) {
-        alert("请填写完整信息。");
+    if (!payload.name) {
+        Message.warning("请填写迁移名称。");
         return;
     }
 
     try {
-        if (editingId) {
-            await updateMigration(editingId, payload);
-        } else {
-            await createMigration(payload);
-        }
+        const isEdit = Boolean(editingId);
+        const result = isEdit
+            ? await updateMigration(editingId, payload)
+            : await createMigration(payload);
+
+        if (!showResultMessage(result, isEdit ? "更新成功" : "添加成功")) return;
+
         migrationModal.hide();
         await loadMigrations();
     } catch (error) {
         console.error(error);
-        alert("保存失败，请稍后重试。");
+        Message.error("保存失败，请稍后重试。");
     }
 });
 
@@ -197,9 +241,9 @@ document.addEventListener("click", async (event) => {
     if (target.classList.contains("js-page")) {
         const page = Number(target.dataset.page);
         const totalPages = getTotalPages();
-        if (!Number.isInteger(page) || page < 1 || page > totalPages) return;
+        if (!Number.isInteger(page) || page < 1 || page > totalPages || page === currentPage) return;
         currentPage = page;
-        renderTable();
+        await loadMigrations();
         return;
     }
 
@@ -207,7 +251,7 @@ document.addEventListener("click", async (event) => {
     if (!id) return;
 
     if (target.classList.contains("js-edit")) {
-        const row = allMigrations.find(item => item.id === id);
+        const row = rows.find(item => item.id === id);
         if (!row) return;
         openEditModal(row);
         return;
@@ -217,12 +261,18 @@ document.addEventListener("click", async (event) => {
     if (!confirm("确认删除这条迁移记录吗？")) return;
 
     try {
-        await deleteMigration(id);
+        const result = await deleteMigration(id, target.dataset.name);
+        if (!showResultMessage(result, "删除成功")) return;
+
         await loadMigrations();
     } catch (error) {
+
         console.error(error);
-        alert("删除失败，请稍后重试。");
+        Message.error("删除失败，请稍后重试。");
     }
 });
 
-loadMigrations();
+window.onload = (async () => {
+    await loadMigrations();
+    window.onload = null;
+});

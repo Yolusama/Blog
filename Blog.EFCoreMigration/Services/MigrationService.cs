@@ -14,19 +14,20 @@ public class MigrationService(MigrationDbContext context,
     private const string DotnetCommand = "dotnet";
     private const string ToMigrateContext = nameof(SysDbContext);
     private const string MigrationsFolder = "Migrations";
-    
     public async Task<ResponseResult<BasePageQueryResult<Migration>>> Get(string searchKey, int pageIndex, int pageSize)
     {
         var data = await context.Migrations
             .WhereIf(!string.IsNullOrWhiteSpace(searchKey), x => x.Name.Contains(searchKey))
+            .Count(out var totalCount)
             .OrderByDescending(x => x.CreateTime)
             .Page(pageIndex, pageSize)
-            .Count(out var totalCount)
             .ToListAsync();
         return ResponseResult.OK(new BasePageQueryResult<Migration>
         {
             Data = data,
-            Total = totalCount
+            Total = totalCount,
+            Page = pageIndex,
+            PageSize = pageSize
         });
     }
 
@@ -41,22 +42,23 @@ public class MigrationService(MigrationDbContext context,
             CreateTime = DateTime.Now,
             HasApplied = false
         };
-        var name = migration.Name;
         try
         {
             await dispatcher
-                .DispatchProcess(DotnetCommand, 
-                    $"ef migrations add {name} --context {ToMigrateContext}");
-            migration.FileName = GetMigrationFileName(name);
+                .DispatchProcess(DotnetCommand, true,
+                    $"ef migrations add {migrationName} --context {ToMigrateContext}");
+            var migrationFile = GetMigrationFileName(migrationName);
+            migration.FileName = migrationFile.Name;
             await context.Migrations.AddAsync(migration);
+            await context.SaveChangesAsync();
         }
         catch (Exception e)
         {
             logger.LogError(e.ToString());
-            await context.SaveChangesAsync();
+            return ResponseResult.Fail($"数据库迁移 {migrationName} 添加失败！");
         }
         
-        return ResponseResult.OK();
+        return ResponseResult.OK(msg: $"数据库迁移 {migrationName} 添加成功");
     }
 
     public async Task<ResponseResult> Migrate(string id,string name)
@@ -67,7 +69,7 @@ public class MigrationService(MigrationDbContext context,
             if(migration == null)
                 throw new FileNotFoundException("迁移不存在");
             await dispatcher
-                .DispatchProcess(DotnetCommand, 
+                .DispatchProcess(DotnetCommand, true,
                     $"ef database update {name} --context {ToMigrateContext}");
             migration.HasApplied = true;
             migration.ApplyTime = DateTime.Now;
@@ -79,7 +81,7 @@ public class MigrationService(MigrationDbContext context,
             return ResponseResult.Fail($"数据库迁移 {name} 失败！");
         }
        
-        return ResponseResult.OK(msg:"操作成功");
+        return ResponseResult.OK(msg: $"数据库迁移 {name} 更新成功");
     }
 
     public async Task<ResponseResult> RemoveMigration(string id,string name)
@@ -89,11 +91,16 @@ public class MigrationService(MigrationDbContext context,
             return ResponseResult.Fail($"数据库迁移 {name} 不存在！");
         try
         {
-            await dispatcher.DispatchProcess(DotnetCommand, 
+            await dispatcher.DispatchProcess(DotnetCommand, true, 
                 $"ef migrations remove {name} --context {ToMigrateContext}");
             context.Migrations.Remove(migration);
             await context.SaveChangesAsync();
-            return ResponseResult.OK();
+            var migrationFile = GetMigrationFileName(name);
+            if (migrationFile.Exists)
+                migrationFile.Delete();
+      
+            return ResponseResult.OK(msg: $"数据库迁移 {name} 删除成功");
+
         }
         catch (Exception e)
         {
@@ -103,7 +110,7 @@ public class MigrationService(MigrationDbContext context,
         
     }
     
-    private static string GetMigrationFileName(string migrationName)
+    private static FileInfo GetMigrationFileName(string migrationName)
     {
         var migrationsFolderPath = new DirectoryInfo(MigrationsFolder);
         var files = migrationsFolderPath.GetFiles("*.cs", SearchOption.TopDirectoryOnly);
@@ -114,6 +121,6 @@ public class MigrationService(MigrationDbContext context,
         });
         if(file == null)
             throw new FileNotFoundException($"Migration file '{migrationName}.cs' not found in the '{MigrationsFolder}' folder.");
-        return file.Name;
+        return file;
     }
 }

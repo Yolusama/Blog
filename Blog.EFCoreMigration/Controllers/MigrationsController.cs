@@ -6,7 +6,6 @@ using Blog.Shared;
 
 namespace Blog.EFCoreMigration.Controllers;
 
-[ApiController]
 [Route("api/[controller]")]
 public class MigrationsController(IMigrationService migrationService) : ControllerBase
 {

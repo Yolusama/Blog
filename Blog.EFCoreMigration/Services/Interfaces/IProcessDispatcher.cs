@@ -2,5 +2,5 @@
 
 public interface IProcessDispatcher
 {
-    public Task DispatchProcess(string command,string? arguments =  null);
+    public Task DispatchProcess(string command,bool useShellExecute = false,string? arguments =  null);
 }

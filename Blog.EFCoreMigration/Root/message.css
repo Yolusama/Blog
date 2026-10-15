@@ -1,0 +1,118 @@
+/* 全局提示组件（类 Element UI Message） */
+
+.message-container {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 90vw;
+    z-index: 1080;
+    pointer-events: none;
+}
+
+.message {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 240px;
+    max-width: 90vw;
+    padding: 10px 14px;
+    border-radius: 6px;
+    border: 1px solid #e1e6ef;
+    background-color: #edf2fc;
+    color: #58698a;
+    font-size: 14px;
+    line-height: 1.4;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, .12);
+    pointer-events: auto;
+    opacity: 0;
+    transform: translateY(-12px);
+    transition: opacity .24s ease, transform .24s ease, top .24s ease;
+}
+
+.message--enter {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.message--leave {
+    opacity: 0;
+    transform: translateY(-12px);
+}
+
+.message__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: #909399;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.message__text {
+    flex: 1 1 auto;
+    word-break: break-word;
+}
+
+.message__close {
+    flex: 0 0 auto;
+    padding: 0 2px;
+    border: 0;
+    background: transparent;
+    color: #c0c4cc;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.message__close:hover {
+    color: #909399;
+}
+
+.message--success {
+    border-color: #e1f3d8;
+    background-color: #f0f9eb;
+    color: #529b2e;
+}
+
+.message--success .message__icon {
+    background-color: #67c23a;
+}
+
+.message--warning {
+    border-color: #faecd8;
+    background-color: #fdf6ec;
+    color: #b88230;
+}
+
+.message--warning .message__icon {
+    background-color: #e6a23c;
+}
+
+.message--error {
+    border-color: #fde2e2;
+    background-color: #fef0f0;
+    color: #c45656;
+}
+
+.message--error .message__icon {
+    background-color: #f56c6c;
+}
+
+.message--info .message__icon {
+    background-color: #909399;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .message {
+        transition: none;
+    }
+}

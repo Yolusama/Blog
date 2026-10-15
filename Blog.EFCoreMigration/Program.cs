@@ -1,4 +1,6 @@
 using Blog.EFCoreMigration;
+using Blog.EFCoreMigration.Services;
+using Blog.EFCoreMigration.Services.Interfaces;
 using Blog.Infrastructure;
 using Blog.Shared;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +22,9 @@ builder.Services.AddDbContext<MigrationDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString(Constants.MigrationDb));
 });
 
+builder.Services.AddSingleton<IProcessDispatcher, ProcessDispatcher>();
+builder.Services.AddScoped<IMigrationService, MigrationService>();
+
 var app = builder.Build();
 
 var rootPath = Path.Combine(app.Environment.ContentRootPath, "Root");
@@ -34,5 +39,7 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.MapControllers();
+
+app.LaunchMigrationView();
 
 app.Run();
