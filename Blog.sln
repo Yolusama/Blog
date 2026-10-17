@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blog.Application", "Blog.Ap
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blog.EFCoreMigration", "Blog.EFCoreMigration\Blog.EFCoreMigration.csproj", "{605AC193-9958-4481-A305-5798AD6AEEE2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blog.EFCoreMigrationMangement", "Blog.EFCoreMigrationMangement\Blog.EFCoreMigrationMangement.csproj", "{6AEB28C4-1C20-40EC-BA6E-6E4CA4C1C456}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -42,5 +44,9 @@ Global
 		{605AC193-9958-4481-A305-5798AD6AEEE2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{605AC193-9958-4481-A305-5798AD6AEEE2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{605AC193-9958-4481-A305-5798AD6AEEE2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6AEB28C4-1C20-40EC-BA6E-6E4CA4C1C456}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6AEB28C4-1C20-40EC-BA6E-6E4CA4C1C456}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6AEB28C4-1C20-40EC-BA6E-6E4CA4C1C456}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6AEB28C4-1C20-40EC-BA6E-6E4CA4C1C456}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

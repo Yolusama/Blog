@@ -7,7 +7,7 @@
     transform: translateX(-50%);
     width: max-content;
     max-width: 90vw;
-    z-index: 1080;
+    z-index: 1100;
     pointer-events: none;
 }
 

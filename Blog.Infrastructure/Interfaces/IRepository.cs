@@ -1,4 +1,5 @@
 ﻿using Blog.Shared;
+using Microsoft.EntityFrameworkCore;
 
 namespace Blog.Infrastructure.Interfaces;
 
@@ -16,6 +17,8 @@ public interface IRepository<T, TKey> where T : AggregateRoot<TKey>
     /// 直接加载到内存
     /// </summary>
     public IEnumerable<T> AllList { get; }
+    public DbContext DbContext { get; }
+    public DbSet<T> DbSet { get; }
     public Task<T?> GetByIdAsync(TKey id);
     public Task AddAsync(T entity);
     public void Add(T entity);

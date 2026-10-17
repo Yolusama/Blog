@@ -13,11 +13,6 @@ public static class RepositoryExpansion
     {
         services.AddScoped(typeof(IRepository<,>), typeof(Repository<,>));
     }
-
-    public static IUnitOfWorker CreateUnitOfWorker<T,Tkey>(this IRepository<T,Tkey> repository) where T : AggregateRoot<Tkey>
-    {
-        return new UnitOfWorker(((Repository<T,Tkey>) repository).DbContext);
-    }
     
     public static IQueryable<T> WhereIf<T>(this IQueryable<T> query, bool condition, 
        Expression<Func<T,bool>> predicate) where T : class

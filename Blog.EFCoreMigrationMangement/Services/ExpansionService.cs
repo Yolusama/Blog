@@ -7,11 +7,11 @@ public static class ExpansionService
     private const int LaunchDelay = 5000;
     public static void LaunchMigrationView(this WebApplication app)
     {
-        app.Lifetime.ApplicationStarted.Register(async () =>
+        app.Lifetime.ApplicationStarted.Register(() =>
         {
             var url = app.Configuration.GetValue<string>("Urls");
             var dispatcher = app.Services.GetRequiredService<IProcessDispatcher>();
-            await dispatcher.DispatchProcess(url,true);
+            dispatcher.DispatchProcess(url,Directory.GetCurrentDirectory(),true);
         });
     }
 }

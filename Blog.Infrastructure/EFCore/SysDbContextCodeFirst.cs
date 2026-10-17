@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Blog.Infrastructure;
 
-public partial class SysDbContext : DbContext
+public partial class SysDbContext
 {
     protected override void OnModelCreating(ModelBuilder builder)
     {

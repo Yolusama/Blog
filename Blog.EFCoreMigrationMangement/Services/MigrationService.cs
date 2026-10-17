@@ -13,7 +13,19 @@ public class MigrationService(MigrationDbContext context,
 {
     private const string DotnetCommand = "dotnet";
     private const string ToMigrateContext = nameof(SysDbContext);
-    private const string MigrationsFolder = "Migrations";
+    private static readonly string MigrationWorkingFolder = GetMigrationFolder();
+    private static readonly string MigrationsFolder = Path.Combine(MigrationWorkingFolder,"Migrations");
+
+    private static string GetMigrationFolder()
+    {
+        if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
+            throw new InvalidOperationException("迁移只存在于开发调试阶段，生产阶段请使用迁移SQL脚本！");
+        const string Management = nameof(Management);
+        var currentDirectory = new DirectoryInfo(Directory.GetCurrentDirectory());
+        var parentDirectory = currentDirectory.Parent;
+        var migrationName = currentDirectory.Name.Substring(0, currentDirectory.Name.Length - Management.Length);
+        return Path.Combine(parentDirectory.FullName, migrationName);
+    }
     public async Task<ResponseResult<BasePageQueryResult<Migration>>> Get(string searchKey, int pageIndex, int pageSize)
     {
         var data = await context.Migrations
@@ -45,7 +57,7 @@ public class MigrationService(MigrationDbContext context,
         try
         {
             await dispatcher
-                .DispatchProcess(DotnetCommand, true,
+                .DispatchProcessAsync(DotnetCommand, MigrationWorkingFolder,false,
                     $"ef migrations add {migrationName} --context {ToMigrateContext}");
             var migrationFile = GetMigrationFileName(migrationName);
             migration.FileName = migrationFile.Name;
@@ -69,7 +81,7 @@ public class MigrationService(MigrationDbContext context,
             if(migration == null)
                 throw new FileNotFoundException("迁移不存在");
             await dispatcher
-                .DispatchProcess(DotnetCommand, true,
+                .DispatchProcessAsync(DotnetCommand, MigrationWorkingFolder,false,
                     $"ef database update {name} --context {ToMigrateContext}");
             migration.HasApplied = true;
             migration.ApplyTime = DateTime.Now;
@@ -84,6 +96,28 @@ public class MigrationService(MigrationDbContext context,
         return ResponseResult.OK(msg: $"数据库迁移 {name} 更新成功");
     }
 
+    public async Task<ResponseResult> RemoveLatest()
+    {
+        var migration = await context.Migrations
+            .Where(m=>!m.HasApplied)
+            .OrderByDescending(m => m.CreateTime).FirstOrDefaultAsync();
+        if (migration == null)
+            return ResponseResult.Fail("最近无未应用迁移");
+        try
+        {
+            await dispatcher.DispatchProcessAsync(DotnetCommand, MigrationWorkingFolder, false,
+                $"ef Migrations remove --context {ToMigrateContext}");
+            context.Migrations.Remove(migration);
+            await context.SaveChangesAsync();
+            return ResponseResult.OK(msg:"操作成功");
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e.ToString());
+            return ResponseResult.Fail($"程序出现移除：{e.Message}");
+        }
+    }
+
     public async Task<ResponseResult> RemoveMigration(string id,string name)
     {
         var migration = await context.Migrations.FirstOrDefaultAsync(x => x.Id == id);
@@ -91,13 +125,9 @@ public class MigrationService(MigrationDbContext context,
             return ResponseResult.Fail($"数据库迁移 {name} 不存在！");
         try
         {
-            await dispatcher.DispatchProcess(DotnetCommand, true, 
-                $"ef migrations remove {name} --context {ToMigrateContext}");
             context.Migrations.Remove(migration);
             await context.SaveChangesAsync();
-            var migrationFile = GetMigrationFileName(name);
-            if (migrationFile.Exists)
-                migrationFile.Delete();
+            RemoveMigrationFiles(name);
       
             return ResponseResult.OK(msg: $"数据库迁移 {name} 删除成功");
 
@@ -109,7 +139,7 @@ public class MigrationService(MigrationDbContext context,
         }
         
     }
-    
+
     private static FileInfo GetMigrationFileName(string migrationName)
     {
         var migrationsFolderPath = new DirectoryInfo(MigrationsFolder);
@@ -117,10 +147,26 @@ public class MigrationService(MigrationDbContext context,
         var file = files.FirstOrDefault(f =>
         {
             var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(f.Name);
-            return fileNameWithoutExtension.Equals(migrationName);
+            return fileNameWithoutExtension.EndsWith(migrationName);
         });
         if(file == null)
-            throw new FileNotFoundException($"Migration file '{migrationName}.cs' not found in the '{MigrationsFolder}' folder.");
+            throw new FileNotFoundException($"在目录{MigrationsFolder}下找不到迁移'{migrationName}'相关的文件.");
         return file;
+    }
+    
+    private static void RemoveMigrationFiles(string migrationName)
+    {
+        var migrationsFolderPath = new DirectoryInfo(MigrationsFolder);
+        var files = migrationsFolderPath.GetFiles("*.cs", SearchOption.TopDirectoryOnly).Where(f =>
+        {
+            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(f.Name);
+            return fileNameWithoutExtension.EndsWith(migrationName) || 
+                   fileNameWithoutExtension.EndsWith($"{migrationName}_Designer");
+        });
+        foreach (var file in files)
+        {
+            if(file.Exists)
+                file.Delete();
+        }
     }
 }

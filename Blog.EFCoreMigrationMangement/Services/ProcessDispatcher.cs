@@ -6,13 +6,14 @@ namespace Blog.EFCoreMigration.Services;
 
 public class ProcessDispatcher(ILogger<ProcessDispatcher> logger) : IProcessDispatcher
 {
-    public async Task DispatchProcess(string fileName,bool useShellExecute = false,string? arguments =  null)
+    public async Task DispatchProcessAsync(string fileName,string workingDirectory,bool useShellExecute = false,string? arguments =  null)
     {
         using var process = new Process();
         var processStartInfo = new ProcessStartInfo(fileName)
         {
             UseShellExecute = useShellExecute,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            WorkingDirectory = workingDirectory
         };
         
         if(!useShellExecute)
@@ -25,6 +26,7 @@ public class ProcessDispatcher(ILogger<ProcessDispatcher> logger) : IProcessDisp
         
         if (!string.IsNullOrEmpty(arguments))
             processStartInfo.Arguments = arguments;
+     
         process.StartInfo = processStartInfo;
 
         process.Start();
@@ -47,6 +49,39 @@ public class ProcessDispatcher(ILogger<ProcessDispatcher> logger) : IProcessDisp
         }
         else
             await process.WaitForExitAsync();
+        
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException(
+                $"Process '{fileName} {arguments}' exited with code {process.ExitCode}.");
+    }
+
+    public void DispatchProcess(string fileName,string workingDirectory, 
+        bool useShellExecute = false, string? arguments = null)
+    {
+        using var process = new Process();
+        var processStartInfo = new ProcessStartInfo(fileName)
+        {
+            UseShellExecute = useShellExecute,
+            CreateNoWindow = true
+        };
+        
+        if(!useShellExecute)
+        {
+            processStartInfo.RedirectStandardError = true;
+            processStartInfo.RedirectStandardOutput = true;
+            processStartInfo.StandardErrorEncoding = Encoding.UTF8;
+            processStartInfo.StandardOutputEncoding = Encoding.UTF8;
+        }
+        
+        if (!string.IsNullOrEmpty(arguments))
+            processStartInfo.Arguments = arguments;
+        
+        process.StartInfo = processStartInfo;
+
+        process.Start();
+        if(!useShellExecute)
+            Console.WriteLine(process.StandardOutput.ReadToEnd());
+        process.WaitForExit();
         
         if (process.ExitCode != 0)
             throw new InvalidOperationException(

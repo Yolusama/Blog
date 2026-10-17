@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Blog.EFCoreMigration.Entity;
 using Blog.EFCoreMigration.Services.Interfaces;
 using Blog.Shared;
@@ -21,10 +20,16 @@ public class MigrationsController(IMigrationService migrationService) : Controll
         return await migrationService.AddMigration(request.Name);
     }
 
-    [HttpPut]
-    public async Task<ActionResult<ResponseResult>> Update([FromBody] MigrationRequest request)
+    [HttpPut("apply")]
+    public async Task<ActionResult<ResponseResult>> Apply([FromBody] MigrationRequest request)
     {
         return await migrationService.Migrate(request.Id, request.Name);
+    }
+
+    [HttpDelete(nameof(RemoveLatest))]
+    public async Task<ActionResult<ResponseResult>> RemoveLatest()
+    {
+        return await migrationService.RemoveLatest();
     }
 
     [HttpDelete("{id}")]
