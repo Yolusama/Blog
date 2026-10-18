@@ -9,47 +9,34 @@ namespace Blog.Domain.ArticleDomain.Entity;
 public class ArticleOptions : AggregateRoot<long>
 {
     /// <summary>
-    /// 查看数
-    /// </summary>
-    public int ViewCount { get;private set; }
-    /// <summary>
-    /// 点赞数
-    /// </summary>
-    public int LikeCount { get;private set; }
-    /// <summary>
-    /// 点踩数
-    /// </summary>
-    public int DislikeCount { get;private set; }
-    /// <summary>
     /// 文章Id
     /// </summary>
-    public string ArticleId { get;private set; }
-
-    public void Like()
-    {
-        LikeCount++;
-        if(DislikeCount > 0)
-          DislikeCount--;
-    }
-
-    public void Dislike()
-    {
-        DislikeCount++;
-        if(LikeCount > 0)
-           LikeCount--;
-    }
-
-    public void View()
-    {
-        ViewCount++;
-    }
-    
-    public ArticleOptions(string articleId)
+    public string ArticleId { get; set; }
+    /// <summary>
+    /// 用户Id
+    /// </summary>
+    public int UserId { get; set; }
+    /// <summary>
+    /// 是否看过文章
+    /// </summary>
+    public bool Viewed { get; set; } 
+    /// <summary>
+    /// 是否点赞过文章
+    /// </summary>
+    public bool Liked { get; set; } 
+    /// <summary>
+    /// 是否点踩过文章
+    /// </summary>
+    public bool DisLiked { get; set; } 
+    /// <summary>
+    /// 是否评论过文章
+    /// </summary>
+    public bool HasCommentedOn { get; set; }
+    public ArticleOptions(){}
+    public ArticleOptions(string articleId,int userId)
     {
         Id = RandomGenerator.SnowflakeId();
         ArticleId = articleId;
-        ViewCount = 0;
-        LikeCount = 0;
-        DislikeCount = 0;
+        UserId = userId;
     }
 }

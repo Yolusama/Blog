@@ -29,8 +29,6 @@ public class UserArticleVO
     /// 是否为草稿
     /// </summary>
     public bool IsDraft { get; set; }
-    /// <summary>
-    public List<ArticleSource> Sources { get; set; }
     public string AuthorName { get; set; }
     public string AuthorAvatar { get; set; }
     public int ViewCount { get; set; }

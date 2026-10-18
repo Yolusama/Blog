@@ -23,7 +23,7 @@ public class MigrationService(MigrationDbContext context,
         const string Management = nameof(Management);
         var currentDirectory = new DirectoryInfo(Directory.GetCurrentDirectory());
         var parentDirectory = currentDirectory.Parent;
-        var migrationName = currentDirectory.Name.Substring(0, currentDirectory.Name.Length - Management.Length);
+        var migrationName = currentDirectory.Name.Substring(0, currentDirectory.Name.Length - Management.Length + 1);
         return Path.Combine(parentDirectory.FullName, migrationName);
     }
     public async Task<ResponseResult<BasePageQueryResult<Migration>>> Get(string searchKey, int pageIndex, int pageSize)

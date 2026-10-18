@@ -8,8 +8,13 @@ namespace Blog.Domain.ArticleDomain.Entity;
 /// </summary>
 public class Article : AggregateRoot<string>
 {
-    public Article(){}
-    public Article(bool isDraft)
+    public Article()
+    {
+        ViewCount = 0;
+        LikeCount = 0;
+        DislikeCount = 0;
+    }
+    public Article(bool isDraft) : this()
     {
         Id = RandomGenerator.Guid();
         IsDraft = isDraft;
@@ -50,6 +55,36 @@ public class Article : AggregateRoot<string>
     /// 形式删除-进入回收站
     /// </summary>
     public bool IsDeleted { get; set; }
+    /// <summary>
+    /// 查看数
+    /// </summary>
+    public int ViewCount { get;private set; }
+    /// <summary>
+    /// 点赞数
+    /// </summary>
+    public int LikeCount { get;private set; }
+    /// <summary>
+    /// 点踩数
+    /// </summary>
+    public int DislikeCount { get;private set; }
+    public void Like()
+    {
+        LikeCount++;
+        if(DislikeCount > 0)
+            DislikeCount--;
+    }
+
+    public void Dislike()
+    {
+        DislikeCount++;
+        if(LikeCount > 0)
+            LikeCount--;
+    }
+
+    public void View()
+    {
+        ViewCount++;
+    }
 
     public void WhenUpload()
     {

@@ -24,18 +24,26 @@ public class ArticleComment : AggregateRoot<long>
     /// </summary>
     public int DislikeCount { get;private set; }
     /// <summary>
-    /// 根ID
+    /// 根ID，防止嵌套过深往往只有一个根评论
     /// </summary>
     public long RootId { get; private set; }
     /// <summary>
-    /// 为满足Id
+    /// 文章Id
     /// </summary>
     public string ArticleId { get; private set; }
+    /// <summary>
+    /// 发起者
+    /// </summary>
+    public int UserId { get; set; }
+    /// <summary>
+    /// 除根评论外的评论Id，根评论此项为空
+    /// </summary>
+    public long? CommentToId { get; set; }
 
     public void SetRootId(long rootId)
     {
         if (rootId == Constants.EOF)
-           throw new ArgumentException($"非根ID值必须为每个评论的Id值");
+           throw new ArgumentException("非根ID值必须为其评论的对应根Id值");
         RootId = rootId;
     }
     
@@ -52,6 +60,9 @@ public class ArticleComment : AggregateRoot<long>
         if(LikeCount > 0)
           LikeCount--;
     }
+    
+    
+    public ArticleComment(){}
     
     public ArticleComment(string articleId)
     {

@@ -210,7 +210,7 @@ async function loadMigrations() {
 
 /**
  * 应用迁移（对应 ef database update）
- * MessageBox 是 Promise 风格，直接 await 拿到用户的选择：
+ * MessageBox 返回 Promise，可直接 await 拿到用户选择：
  *   confirm  → true / false
  *   alert    → true / false
  *   prompt   → string / null
@@ -225,13 +225,20 @@ async function applyMigrate(row) {
     );
     if (!confirmed) return; // 用户取消，什么都不做
 
+    const loading = Loading.show({
+        text: "正在应用迁移…",
+        subText: `执行 database update：${row.name}，请勿关闭页面`
+    });
+
     try {
         const result = await updateMigration({ id: row.id, name: row.name });
+        loading.close();
         if (!showResultMessage(result, "应用成功")) return;
 
         await loadMigrations();
     } catch (error) {
         console.error(error);
+        loading.close();
         Message.error("应用迁移失败，请稍后重试。");
     }
 }
@@ -240,20 +247,39 @@ async function removeMigrate(row) {
     if(!row) return;
 
     const confirmed = await MessageBox.confirm(
-        `确定要删除迁移「${row.name}」吗？删除后对应的迁移文件也会被移除。`,
+        `确定要删除迁移「${row.name}」吗？对应的迁移文件将被一并移除。`,
         { title: "删除迁移", type: "error", confirmText: "删除", danger: true }
     );
     if (!confirmed) return;
 
+    const loading = Loading.show({
+        text: "正在删除迁移…",
+        subText: `移除迁移文件：${row.name}`
+    });
+
     try {
         const result = await deleteMigration(row.id, row.name);
+        loading.close();
         if (!showResultMessage(result, "删除成功")) return;
 
         await loadMigrations();
     } catch (error) {
         console.error(error);
+        loading.close();
         Message.error("删除迁移失败，请稍后重试。");
     }
+}
+
+/**
+ * 应用迁移（对应 ef database update）
+ * 后端路由：[HttpPut("apply")] → PUT /api/migrations/apply
+ */
+async function updateMigration(payload) {
+    const result = await apiClient.put(`${apiUrl}/apply`, {
+        id: payload?.id ?? "",
+        name: payload?.name ?? ""
+    });
+    return result.data;
 }
 
 // 其它几种调用示例（按需使用，当前流程未调用）：
@@ -261,7 +287,7 @@ async function removeMigrate(row) {
 // await MessageBox.success("保存成功", { title: "提示" });
 // const name = await MessageBox.prompt("请输入迁移名称", { inputValue: row.name });
 // if (name === null) return;   // null 表示取消
-// MessageBox.close();          // 主动关闭当前弹窗（按取消处理）
+// MessageBox.close();          // 主动关闭��前弹窗，按取消处理
 
 function openCreateModal() {
     editingId = null;
@@ -318,15 +344,26 @@ migrationForm.addEventListener("submit", async (event) => {
         return;
     }
 
+    const submitBtn = migrationForm.querySelector('button[type="submit"]');
+    const loading = Loading.show({
+        text: "正在生成迁移文件…",
+        subText: "dotnet ef 需要先编译项目，请勿关闭或刷新页面"
+    });
+    if (submitBtn) submitBtn.disabled = true;
+
     try {
         const result = await createMigration(payload);
+        loading.close();
         if (!showResultMessage(result, "添加成功")) return;
 
         migrationModal.hide();
         await loadMigrations();
     } catch (error) {
         console.error(error);
+        loading.close();
         Message.error("保存失败，请稍后重试。");
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
     }
 });
 
@@ -335,15 +372,29 @@ removeLatestBtn.addEventListener('click',async ()=>{
     {
         const confirmed = await MessageBox.confirm(
             `此操作将移除最新未应用迁移，是否继续？`,
-            { title: "删除最近迁移", type: "warning", confirmText: "确定", danger: true }
+            { title: "删除最近迁移", type: "warning", confirmText: "确定"}
         );
         if(!confirmed) return;
-        const res = await apiClient.delete(`${apiUrl}/RemoveLatest`);
-        if(!res.success) {
-            Message.error(res.message);
+
+        const loading = Loading.show({
+            text: "正在移除最新迁移…",
+            subText: "dotnet ef 需要先编译项目，请勿关闭或刷新页面"
+        });
+
+        let res;
+        try {
+            const response = await apiClient.delete(`${apiUrl}/RemoveLatest`);
+            res = response.data;
+        } finally {
+            loading.close();
+        }
+
+        if(!res?.success) {
+            Message.error(res?.message || "移除失败，请稍后重试。");
             return;
         }
         Message.success(res.message);
+        await loadMigrations();
     }
     catch(error) {
         console.error(error);

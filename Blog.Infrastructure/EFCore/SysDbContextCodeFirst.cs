@@ -110,7 +110,17 @@ public partial class SysDbContext
             .Property(a => a.AuthorId)
             .HasComment("作者Id")
             .HasColumnType("int");
+        builder.Entity<Article>()
+            .Property(x => x.ViewCount)
+            .IsRequired()
+            .HasComment("查看数");
+        builder.Entity<Article>().Property(x => x.LikeCount)
+            .HasComment("点赞数");
 
+        builder.Entity<Article>().Property(x => x.DislikeCount)
+            .IsRequired()
+            .HasComment("点踩数");
+        
         builder.Entity<Article>()
             .HasIndex(e => e.AuthorId)
             .HasDatabaseName("IDX_Article_AuthorId");
@@ -123,45 +133,43 @@ public partial class SysDbContext
 
         #endregion
 
-        #region 文章统计表迁移
+        #region 文章选项信息表迁移
 
         builder.Entity<ArticleOptions>().ToTable(nameof(ArticleOptions), t =>
-            t.HasComment("文章统计选项表"));
+            t.HasComment("文章选项信息表"));
 
         builder.Entity<ArticleOptions>()
             .HasKey(x => x.Id);
         builder.Entity<ArticleOptions>()
             .Property(x => x.Id)
             .HasColumnType("bigint")
-            .HasComment("文章统计选项Id");
-
-        builder.Entity<ArticleOptions>()
-            .Property(x => x.ViewCount)
-            .IsRequired()
-            .HasComment("查看数");
-
-        builder.Entity<ArticleOptions>().Property(x => x.LikeCount)
-            .HasDefaultValue(0)
-            .HasComment("点赞数");
-
-        builder.Entity<ArticleOptions>().Property(x => x.DislikeCount)
-            .HasDefaultValue(0)
-            .IsRequired()
-            .HasComment("点踩数");
-
+            .HasComment("文章选项信息Id");
         builder.Entity<ArticleOptions>()
             .Property(x => x.ArticleId)
             .IsRequired()
             .HasMaxLength(64)
             .HasComment("文章Id");
+        builder.Entity<ArticleOptions>()
+            .Property(x => x.UserId)
+            .IsRequired()
+            .HasMaxLength(64)
+            .HasComment("用户Id");
+        builder.Entity<ArticleOptions>()
+            .Property(x => x.Liked)
+            .HasColumnType("tinyint(1)")
+            .HasComment("是否点赞");
+         builder.Entity<ArticleOptions>()
+             .Property(x => x.DisLiked)
+             .HasColumnType("tinyint(1)")
+             .HasComment("是否点踩");
+         builder.Entity<ArticleOptions>()
+             .Property(x => x.Viewed)
+             .HasColumnType("tinyint(1)")
+             .HasComment("是否查看过");
 
         builder.Entity<ArticleOptions>()
-            .Property(x => x.ArticleId)
-            .HasMaxLength(64);
-
-        builder.Entity<ArticleOptions>()
-            .HasIndex(x => x.ArticleId)
-            .IsUnique();
+            .HasIndex(x => new {x.ArticleId, x.UserId})
+            .HasDatabaseName("Index_ArticleOptions_ArticleId_UserId");
 
         #endregion
 
@@ -199,14 +207,21 @@ public partial class SysDbContext
         builder.Entity<ArticleComment>().Property(x => x.RootId)
             .IsRequired()
             .HasDefaultValue(Constants.EOF)
-            .HasComment("根ID（指向根评论的 Id，根评论为 -1）");
+            .HasComment("根ID（指向根评论的 Id，根评论为 -1），防止嵌套过深往往只有一个根评论");
+        builder.Entity<ArticleComment>().Property(x => x.UserId)
+            .IsRequired()
+            .HasComment("发起者");
+        builder.Entity<ArticleComment>().Property(x => x.CommentToId)
+            .IsRequired(false)
+            .HasColumnType("bigint")
+            .HasComment("除根评论外的评论Id，根评论此项为空");
 
         builder.Entity<ArticleComment>()
             .HasIndex(x => x.RootId)
             .HasDatabaseName("IX_ArticleComment_RootId");
         builder.Entity<ArticleComment>()
-            .HasIndex(x => new { x.RootId, x.CreateTime })
-            .HasDatabaseName("IX_ArticleComment_RootId_CreateTime");
+            .HasIndex(x => x.UserId)
+            .HasDatabaseName("IX_ArticleComment_UserId");
         builder.Entity<ArticleComment>()
             .HasIndex(x => x.ArticleId)
             .IsUnique()
@@ -249,6 +264,43 @@ public partial class SysDbContext
         builder.Entity<ArticleSource>()
             .HasIndex(x => x.CreateTime)
             .HasDatabaseName("IX_ArticleSourceCreateTime");
+        #endregion
+
+        #region 文章评论选项信息表迁移
+        builder.Entity<ArticleCommentOptions>()
+            .ToTable(nameof(ArticleCommentOptions), t => t.HasComment("文章评论选项信息表"));
+
+        builder.Entity<ArticleCommentOptions>(configure =>
+        {
+               configure.HasKey(x => x.Id);
+               
+               configure.Property(x => x.Id)
+                     .HasColumnType("bigint")
+                     .UseMySqlIdentityColumn()
+                     .HasComment("文章评论选项信息Id");
+               configure.Property(x => x.CommentId)
+                     .IsRequired()
+                     .HasColumnType("bigint")
+                     .HasComment("文章评论Id");
+               configure.Property(x => x.UserId)
+                     .IsRequired()
+                     .HasColumnType("int")
+                     .HasComment("用户Id");
+               configure.Property(x => x.Liked)
+                     .IsRequired()
+                     .HasColumnType("tinyint(1)")
+                     .HasComment("是否点赞");
+               configure.Property(x => x.Disliked)
+                   .IsRequired()
+                   .HasColumnType("tinyint(1)")
+                     .HasComment("是否点踩");
+               
+               configure.HasIndex(x => x.UserId)
+                   .HasDatabaseName("IX_ArticleCommentOptions_UserId");
+               configure.HasIndex(x => x.CommentId)
+                   .HasDatabaseName("IX_ArticleCommentOptions_CommentId");
+        });
+
         #endregion
     }
 }

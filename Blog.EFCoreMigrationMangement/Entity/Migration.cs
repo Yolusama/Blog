@@ -9,6 +9,7 @@ public class Migration
     public string Name { get; set; }
     public DateTime? CreateTime { get; set; }
     public string FileName { get; set; }
-    [Column(TypeName = "integer")] public bool HasApplied { get; set; }
+    [Column(TypeName = "integer")]
+    public bool HasApplied { get; set; }
     public DateTime? ApplyTime { get; set; }
 }
