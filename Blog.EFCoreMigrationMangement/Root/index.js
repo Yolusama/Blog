@@ -103,6 +103,7 @@ function renderRows() {
           deleteBtn.dataset.id = item.id;
           deleteBtn.dataset.name = item.name;
           deleteBtn.textContent = "删除";
+          deleteBtn.style.display = "none";
           deleteBtn.addEventListener("click", () => removeMigrate(item));
           actionTd.append(applyBtn, deleteBtn);
           row.append(idTd, nameTd, createTimeTd, fileNameTd, applyTimeTd, actionTd);

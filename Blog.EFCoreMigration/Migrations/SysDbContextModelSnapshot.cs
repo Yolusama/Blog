@@ -47,12 +47,20 @@ namespace Blog.EFCoreMigration.Migrations
                         .HasColumnType("datetime")
                         .HasComment("创建时间");
 
+                    b.Property<int>("DislikeCount")
+                        .HasColumnType("int")
+                        .HasComment("点踩数");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsDraft")
                         .HasColumnType("tinyint(1)")
                         .HasComment("是否为草稿");
+
+                    b.Property<int>("LikeCount")
+                        .HasColumnType("int")
+                        .HasComment("点赞数");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -67,6 +75,10 @@ namespace Blog.EFCoreMigration.Migrations
                     b.Property<DateTime?>("UploadTime")
                         .HasColumnType("datetime")
                         .HasComment("正式上传时间");
+
+                    b.Property<int>("ViewCount")
+                        .HasColumnType("int")
+                        .HasComment("查看数");
 
                     b.HasKey("Id");
 
@@ -100,6 +112,10 @@ namespace Blog.EFCoreMigration.Migrations
                         .HasColumnType("varchar(64)")
                         .HasComment("文章Id");
 
+                    b.Property<long?>("CommentToId")
+                        .HasColumnType("bigint")
+                        .HasComment("除根评论外的评论Id，根评论此项为空");
+
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasMaxLength(2000)
@@ -118,27 +134,84 @@ namespace Blog.EFCoreMigration.Migrations
                         .HasColumnType("int")
                         .HasComment("喜欢数");
 
+                    b.Property<DateTime?>("PostTime")
+                        .HasColumnType("datetime(6)")
+                        .HasComment("发表时间");
+
                     b.Property<long>("RootId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasDefaultValue(-1L)
-                        .HasComment("根ID（指向根评论的 Id，根评论为 -1）");
+                        .HasComment("根ID（指向根评论的 Id，根评论为 -1），防止嵌套过深往往只有一个根评论");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasComment("发起者");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ArticleId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_ArticleComment_ArticleId");
+                        .HasDatabaseName("IX_ArticleComment_Article");
+
+                    b.HasIndex("PostTime")
+                        .HasDatabaseName("IX_ArticleComment_PostTime");
 
                     b.HasIndex("RootId")
                         .HasDatabaseName("IX_ArticleComment_RootId");
 
-                    b.HasIndex("RootId", "CreateTime")
-                        .HasDatabaseName("IX_ArticleComment_RootId_CreateTime");
-
                     b.ToTable("ArticleComment", null, t =>
                         {
                             t.HasComment("文章评论表");
+                        });
+                });
+
+            modelBuilder.Entity("Blog.Domain.ArticleDomain.Entity.ArticleCommentOptions", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasComment("文章评论选项信息Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CommentId")
+                        .HasColumnType("bigint")
+                        .HasComment("文章评论Id");
+
+                    b.Property<DateTime?>("CreateTime")
+                        .HasColumnType("datetime")
+                        .HasComment("创建时间");
+
+                    b.Property<bool>("Disliked")
+                        .HasColumnType("tinyint(1)")
+                        .HasComment("是否点踩");
+
+                    b.Property<bool>("Liked")
+                        .HasColumnType("tinyint(1)")
+                        .HasComment("是否点赞");
+
+                    b.Property<DateTime?>("UpdateTime")
+                        .HasColumnType("datetime")
+                        .HasComment("修改时间");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasComment("用户Id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CommentId")
+                        .HasDatabaseName("IX_ArticleCommentOptions_CommentId");
+
+                    b.HasIndex("CreateTime")
+                        .HasDatabaseName("Index_ArticleCommentOptions_CreateTime");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_ArticleCommentOptions_UserId");
+
+                    b.ToTable("ArticleCommentOptions", null, t =>
+                        {
+                            t.HasComment("文章评论选项信息表");
                         });
                 });
 
@@ -147,7 +220,7 @@ namespace Blog.EFCoreMigration.Migrations
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasComment("文章统计选项Id");
+                        .HasComment("文章选项信息Id");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
 
@@ -157,30 +230,45 @@ namespace Blog.EFCoreMigration.Migrations
                         .HasColumnType("varchar(64)")
                         .HasComment("文章Id");
 
-                    b.Property<int>("DislikeCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasComment("点踩数");
+                    b.Property<DateTime?>("CreateTime")
+                        .HasColumnType("datetime(6)")
+                        .HasComment("创建时间");
 
-                    b.Property<int>("LikeCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasComment("点赞数");
+                    b.Property<bool>("DisLiked")
+                        .HasColumnType("tinyint(1)")
+                        .HasComment("是否点踩");
 
-                    b.Property<int>("ViewCount")
+                    b.Property<bool>("HasCommentedOn")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("Liked")
+                        .HasColumnType("tinyint(1)")
+                        .HasComment("是否点赞");
+
+                    b.Property<DateTime?>("UpdateTime")
+                        .HasColumnType("datetime(6)")
+                        .HasComment("更新时间");
+
+                    b.Property<int>("UserId")
+                        .HasMaxLength(64)
                         .HasColumnType("int")
-                        .HasComment("查看数");
+                        .HasComment("用户Id");
+
+                    b.Property<bool>("Viewed")
+                        .HasColumnType("tinyint(1)")
+                        .HasComment("是否查看过");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ArticleId")
-                        .IsUnique();
+                    b.HasIndex("CreateTime")
+                        .HasDatabaseName("Index_ArticleOptions_CreateTime");
+
+                    b.HasIndex("ArticleId", "UserId")
+                        .HasDatabaseName("Index_ArticleOptions_ArticleId_UserId");
 
                     b.ToTable("ArticleOptions", null, t =>
                         {
-                            t.HasComment("文章统计选项表");
+                            t.HasComment("文章选项信息表");
                         });
                 });
 

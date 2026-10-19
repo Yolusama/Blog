@@ -174,6 +174,8 @@ public class ArticleService(ILogger<ArticleService> logger,
             articleOptions.Liked = false;
             articleOptions.DisLiked = true;
         }
+
+        articleOptions.UpdateTime = DateTime.Now;
         articleRepository.Update(article);
         articleOptionsRepository.Update(articleOptions);
     }
@@ -192,7 +194,6 @@ public class ArticleService(ILogger<ArticleService> logger,
         var comment = commentDto.ShallowCopy(new ArticleComment(commentDto.ArticleId));
         if(commentDto.RootId != Constants.EOF)
             comment.SetRootId(commentDto.RootId);
-        
         await articleCommentRepository.AddAsync(comment);
     }
 
@@ -206,7 +207,16 @@ public class ArticleService(ILogger<ArticleService> logger,
             .FirstOrDefaultAsync();
         if (comment == null)
             throw new ServiceException("评论不存在", (int)HttpStatusCode.NotFound);
-        var commentOptions = new ArticleCommentOptions(commentId, comment.UserId);
+        var commentOptions = await articleCommentOptionsRepository
+            .All
+            .FirstOrDefaultAsync(c => 
+                c.CommentId == commentId && c.UserId == comment.UserId);
+        var isNewItem = false;
+        if (commentOptions == null)
+        {
+            commentOptions = new ArticleCommentOptions(commentId, comment.UserId);
+            isNewItem = true;
+        }
         if (type == LikeOrDislikeEnum.Like)
         {
             commentOptions.Liked = true;
@@ -220,9 +230,12 @@ public class ArticleService(ILogger<ArticleService> logger,
             commentOptions.Disliked = true;
             comment.Dislike();
         }
-
-        await articleCommentOptionsRepository.AddAsync(commentOptions);
+        commentOptions.UpdateTime = DateTime.Now;
+        
         articleCommentRepository.DbSet.Attach(comment);
-        articleCommentRepository.Update(comment);
+        if(!isNewItem)
+            articleCommentOptionsRepository.Update(commentOptions);
+        else 
+            await articleCommentOptionsRepository.AddAsync(commentOptions);
     }
 }

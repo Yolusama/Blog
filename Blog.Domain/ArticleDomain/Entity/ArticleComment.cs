@@ -39,6 +39,10 @@ public class ArticleComment : AggregateRoot<long>
     /// 除根评论外的评论Id，根评论此项为空
     /// </summary>
     public long? CommentToId { get; set; }
+    /// <summary>
+    /// 发表时间
+    /// </summary>
+    public DateTime? PostTime { get;  set; }
 
     public void SetRootId(long rootId)
     {

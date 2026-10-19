@@ -32,6 +32,14 @@ public class ArticleOptions : AggregateRoot<long>
     /// 是否评论过文章
     /// </summary>
     public bool HasCommentedOn { get; set; }
+    /// <summary>
+    /// 创建时间
+    /// </summary>
+    public DateTime? CreateTime { get; private set; } = DateTime.Now;
+    /// <summary>
+    /// 修改时间
+    /// </summary>
+    public DateTime? UpdateTime { get;  set; }
     public ArticleOptions(){}
     public ArticleOptions(string articleId,int userId)
     {

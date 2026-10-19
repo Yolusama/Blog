@@ -23,6 +23,14 @@ public class ArticleCommentOptions : AggregateRoot<long>
     /// 是否讨厌
     /// </summary>
     public bool Disliked { get; set; }
+    /// <summary>
+    /// 创建时间
+    /// </summary>
+    public DateTime? CreateTime { get; private set; } = DateTime.Now;
+    /// <summary>
+    /// 修改时间
+    /// </summary>
+    public DateTime? UpdateTime { get;  set; }
     public ArticleCommentOptions()
     {
     }

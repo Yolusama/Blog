@@ -166,7 +166,16 @@ public partial class SysDbContext
              .Property(x => x.Viewed)
              .HasColumnType("tinyint(1)")
              .HasComment("是否查看过");
-
+         builder.Entity<ArticleOptions>()
+             .Property(x => x.CreateTime)
+             .HasComment("创建时间");
+         builder.Entity<ArticleOptions>()
+             .Property(x => x.UpdateTime)
+             .HasComment("更新时间");
+         
+         builder.Entity<ArticleOptions>()
+             .HasIndex(x => x.CreateTime)
+             .HasDatabaseName("Index_ArticleOptions_CreateTime");
         builder.Entity<ArticleOptions>()
             .HasIndex(x => new {x.ArticleId, x.UserId})
             .HasDatabaseName("Index_ArticleOptions_ArticleId_UserId");
@@ -215,17 +224,19 @@ public partial class SysDbContext
             .IsRequired(false)
             .HasColumnType("bigint")
             .HasComment("除根评论外的评论Id，根评论此项为空");
+        builder.Entity<ArticleComment>().Property(x => x.PostTime)
+            .IsRequired(false)
+            .HasComment("发表时间");
 
         builder.Entity<ArticleComment>()
             .HasIndex(x => x.RootId)
             .HasDatabaseName("IX_ArticleComment_RootId");
         builder.Entity<ArticleComment>()
-            .HasIndex(x => x.UserId)
-            .HasDatabaseName("IX_ArticleComment_UserId");
-        builder.Entity<ArticleComment>()
             .HasIndex(x => x.ArticleId)
-            .IsUnique()
-            .HasDatabaseName("IX_ArticleComment_ArticleId");
+            .HasDatabaseName("IX_ArticleComment_Article");
+        builder.Entity<ArticleComment>()
+            .HasIndex(x => x.PostTime)
+            .HasDatabaseName("IX_ArticleComment_PostTime");
 
         #endregion
 
@@ -294,11 +305,19 @@ public partial class SysDbContext
                    .IsRequired()
                    .HasColumnType("tinyint(1)")
                      .HasComment("是否点踩");
+               configure.Property(x => x.CreateTime)
+                   .HasColumnType("datetime")
+                   .HasComment("创建时间");
+               configure.Property(x => x.UpdateTime)
+                     .HasColumnType("datetime")
+                     .HasComment("修改时间");
                
                configure.HasIndex(x => x.UserId)
                    .HasDatabaseName("IX_ArticleCommentOptions_UserId");
                configure.HasIndex(x => x.CommentId)
                    .HasDatabaseName("IX_ArticleCommentOptions_CommentId");
+               configure.HasIndex(x => x.CreateTime)
+                   .HasDatabaseName("Index_ArticleCommentOptions_CreateTime");
         });
 
         #endregion
