@@ -52,6 +52,7 @@ public class UserLoginService(
         await redis.SetAsync($"{user.Id}_{RedisCachingKeys.UserToken}", token, Constants.LoginExpire);
         var vo = user.ShallowCopy<User, UserAuthVO>();
         vo.Token = token;
+        vo.UserId = user.Id;
         user.LastLoginTime = DateTime.Now;
         userRepository.Update(user);
         return vo;

@@ -75,9 +75,10 @@ public class User : AggregateRoot<int>
 
     private static string GetEncryptedStr(string str)
     {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(str));
-        var encryptedPwd = BitConverter.ToString(bytes).Replace("-", string.Empty);
-        return encryptedPwd;
+        byte[] bytes = Encoding.UTF8.GetBytes(str);
+        byte[] digest = SHA256.HashData(bytes); 
+
+        return Convert.ToHexString(digest).ToLowerInvariant();
     }
     
     public void SetNickname(string nickname)

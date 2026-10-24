@@ -2,6 +2,7 @@ using Blog.Application.Services;
 using Blog.HostedServices;
 using Blog.Infrastructure;
 using Blog.Infrastructure.Expansions;
+using Blog.Middlewares;
 using Blog.Services.Filters;
 using Blog.Shared;
 using Microsoft.EntityFrameworkCore;
@@ -67,13 +68,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-
 app.UseCors();
 
 app.UseStaticFileRequest();
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<ProjectAuditLogMiddleware>();
 
 app.MapControllers();
 

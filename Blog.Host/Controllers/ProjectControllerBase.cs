@@ -8,6 +8,7 @@ namespace Blog.Controllers;
 public class ProjectControllerBase : ControllerBase
 {
     private const string AuthorizationHeaderName = "Authorization";
+    [NonAction]
     public UserJwtInfo GetCurrentUser()
     {
         var jwtService = Request.HttpContext.RequestServices.GetRequiredService<IJwtService>();

@@ -43,6 +43,12 @@ namespace Blog.EFCoreMigration.Migrations
                         .HasColumnType("varchar(100)")
                         .HasComment("文章最终内容指向源");
 
+                    b.Property<string>("Cover")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasComment("文章封面");
+
                     b.Property<DateTime?>("CreateTime")
                         .HasColumnType("datetime")
                         .HasComment("创建时间");
@@ -393,6 +399,80 @@ namespace Blog.EFCoreMigration.Migrations
                     b.ToTable("User", null, t =>
                         {
                             t.HasComment("用户表");
+                        });
+                });
+
+            modelBuilder.Entity("Blog.Shared.ProjectAuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasComment("日志Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActionDesc")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasComment("Action描述内容");
+
+                    b.Property<string>("ActionName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasComment("Action方法名");
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasComment("请求方式");
+
+                    b.Property<string>("Exception")
+                        .HasColumnType("longtext")
+                        .HasComment("异常信息");
+
+                    b.Property<int>("ExecutionDuration")
+                        .HasColumnType("int")
+                        .HasComment("执行耗时（毫秒）");
+
+                    b.Property<DateTime>("ExecutionTime")
+                        .HasColumnType("datetime")
+                        .HasComment("执行时间");
+
+                    b.Property<string>("ParameterJson")
+                        .HasColumnType("json")
+                        .HasComment("请求参数Json");
+
+                    b.Property<string>("RemoteIpAddr")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasComment("远程请求IP");
+
+                    b.Property<string>("Route")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasComment("请求路由");
+
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasComment("服务/控制器名");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActionName")
+                        .HasDatabaseName("IX_ProjectAuditLog_ActionName");
+
+                    b.HasIndex("ExecutionTime")
+                        .HasDatabaseName("IX_ProjectAuditLog_ExecutionTime");
+
+                    b.ToTable("ProjectAuditLog", null, t =>
+                        {
+                            t.HasComment("API审计日志表");
                         });
                 });
 #pragma warning restore 612, 618

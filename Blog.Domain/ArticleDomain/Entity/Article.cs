@@ -32,6 +32,10 @@ public class Article : AggregateRoot<string>
     /// </summary>
     public string Content { get; set; }
     /// <summary>
+    /// 文章封面
+    /// </summary>
+    public string Cover { get; set; }
+    /// <summary>
     /// 简介摘要
     /// </summary>
     public string Abstract { get; set; }

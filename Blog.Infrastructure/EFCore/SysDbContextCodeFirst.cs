@@ -116,10 +116,13 @@ public partial class SysDbContext
             .HasComment("查看数");
         builder.Entity<Article>().Property(x => x.LikeCount)
             .HasComment("点赞数");
-
         builder.Entity<Article>().Property(x => x.DislikeCount)
             .IsRequired()
             .HasComment("点踩数");
+        builder.Entity<Article>().Property(x => x.Cover)
+            .IsRequired()
+            .HasMaxLength(100)
+            .HasComment("文章封面");
         
         builder.Entity<Article>()
             .HasIndex(e => e.AuthorId)
@@ -318,6 +321,65 @@ public partial class SysDbContext
                    .HasDatabaseName("IX_ArticleCommentOptions_CommentId");
                configure.HasIndex(x => x.CreateTime)
                    .HasDatabaseName("Index_ArticleCommentOptions_CreateTime");
+        });
+
+        #endregion
+
+        #region API审计日志表迁移
+
+        builder.Entity<ProjectAuditLog>()
+            .ToTable(nameof(ProjectAuditLog), t => t.HasComment("API审计日志表"));
+
+        builder.Entity<ProjectAuditLog>(configure =>
+        {
+            configure.HasKey(x => x.Id);
+
+            configure.Property(x => x.Id)
+                .UseMySqlIdentityColumn()
+                .HasColumnType("bigint")
+                .HasComment("日志Id");
+            configure.Property(x => x.ActionName)
+                .HasMaxLength(128)
+                .IsRequired()
+                .HasComment("Action方法名");
+            configure.Property(x => x.ServiceName)
+                .HasMaxLength(128)
+                .IsRequired()
+                .HasComment("服务/控制器名");
+            configure.Property(x => x.ActionType)
+                .HasMaxLength(16)
+                .IsRequired()
+                .HasComment("请求方式");
+            configure.Property(x => x.ActionDesc)
+                .HasMaxLength(200)
+                .IsRequired()
+                .HasComment("Action描述内容");
+            configure.Property(x => x.Route)
+                .HasMaxLength(200)
+                .IsRequired()
+                .HasComment("请求路由");
+            configure.Property(x => x.RemoteIpAddr)
+                .HasMaxLength(64)
+                .IsRequired(false)
+                .HasComment("远程请求IP");
+            configure.Property(x => x.ParameterJson)
+                .HasColumnType("json")
+                .IsRequired(false)
+                .HasComment("请求参数Json");
+            configure.Property(x => x.Exception)
+                .HasColumnType("longtext")
+                .IsRequired(false)
+                .HasComment("异常信息");
+            configure.Property(x => x.ExecutionTime)
+                .HasColumnType("datetime")
+                .HasComment("执行时间");
+            configure.Property(x => x.ExecutionDuration)
+                .HasComment("执行耗时（毫秒）");
+
+            configure.HasIndex(x => x.ExecutionTime)
+                .HasDatabaseName("IX_ProjectAuditLog_ExecutionTime");
+            configure.HasIndex(x => x.ActionName)
+                .HasDatabaseName("IX_ProjectAuditLog_ActionName");
         });
 
         #endregion

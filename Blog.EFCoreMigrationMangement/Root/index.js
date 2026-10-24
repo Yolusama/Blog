@@ -83,10 +83,16 @@ function renderRows() {
           idTd.textContent = item.id;
           const nameTd = document.createElement("td");
           nameTd.textContent = item.name;
+          nameTd.className = "text-overflow-ellipse";
+          nameTd.style.maxWidth = "150px";
+          nameTd.title = item.name;
           const createTimeTd = document.createElement("td");
           createTimeTd.textContent = formatDateTime(item.createTime);
           const fileNameTd = document.createElement("td");
           fileNameTd.textContent = item.fileName;
+          fileNameTd.style.maxWidth = "200px";
+          fileNameTd.title = item.fileName;
+          fileNameTd.className = "text-overflow-ellipse";
           const applyTimeTd = document.createElement("td");
           applyTimeTd.textContent = formatDateTime(item.applyTime);
           const actionTd = document.createElement("td");

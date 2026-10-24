@@ -22,12 +22,12 @@ public static class RepositoryExpansion
         return query;
     }
 
-    public static IQueryable<T> Page<T>(this IQueryable<T> query, int page, int pageSize) where T : class
+    public static IQueryable<T>Page<T>(this IQueryable<T> query, int page, int pageSize) where T : class
     {
         return query.Skip((page - 1) * pageSize).Take(pageSize);
     }
     
-    public static IQueryable<T>  Count<T>(this IQueryable<T> query, out long totalCount) where T : class
+    public static IQueryable<T> Count<T>(this IQueryable<T> query, out long totalCount) where T : class
     {
         totalCount = query.Count();
         return query;
