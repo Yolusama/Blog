@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using Blog.Application.Attributes;
 using Blog.Application.Services.Interfaces.ArticleDomain;
 using Blog.Domain.ArticleDomain.Entity;
 using Blog.Domain.ArticleDomain.DTO;
@@ -14,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Blog.Application.Services.ArticleDomain;
 
+[ServiceInjection]
 public class ArticleService(ILogger<ArticleService> logger,
     IRepository<Article,string> articleRepository,
     IRepository<ArticleSource,long> articleSourceRepository,

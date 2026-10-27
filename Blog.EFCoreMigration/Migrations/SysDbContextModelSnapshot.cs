@@ -429,6 +429,12 @@ namespace Blog.EFCoreMigration.Migrations
                         .HasColumnType("varchar(16)")
                         .HasComment("请求方式");
 
+                    b.Property<string>("ClientInfo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasComment("客户端请求信息（请求头User-Agent)");
+
                     b.Property<string>("Exception")
                         .HasColumnType("longtext")
                         .HasComment("异常信息");

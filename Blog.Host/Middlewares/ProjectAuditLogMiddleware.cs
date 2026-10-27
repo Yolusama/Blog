@@ -37,6 +37,7 @@ public class ProjectAuditLogMiddleware(
             return;
         }
 
+        var userAgent = httpContext.Request.Headers.UserAgent;
         var log = new ProjectAuditLog
         {
             ExecutionTime = DateTime.Now,
@@ -46,7 +47,8 @@ public class ProjectAuditLogMiddleware(
             Route = httpContext.Request.Path.Value ?? string.Empty,
             RemoteIpAddr = GetIpAddress(httpContext) ?? string.Empty,
             ActionDesc = action.DisplayName,
-            ParameterJson = await ReadParameterJsonAsync(httpContext,action) ?? string.Empty
+            ParameterJson = await ReadParameterJsonAsync(httpContext,action) ?? string.Empty,
+            ClientInfo = userAgent.ToString()
         };
 
         var stopwatch = Stopwatch.StartNew();

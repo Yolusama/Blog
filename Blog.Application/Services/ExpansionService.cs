@@ -116,14 +116,14 @@ public static class ExpansionService
 
     public static void UseStaticFileRequest(this WebApplication app)
     {
-        var directory = new DirectoryInfo(app.Configuration["StaticFiles:BasePath"]);
+        var directory = new DirectoryInfo(app.Configuration[Constants.StaticFilesRequestPath]);
         if(!directory.Exists)
             directory.Create();
         app.UseStaticFiles(new StaticFileOptions
         {
             ServeUnknownFileTypes = true,
             FileProvider = new PhysicalFileProvider(directory.FullName),
-            RequestPath = app.Configuration["StaticFiles:RequestPath"],
+            RequestPath = app.Configuration[Constants.StaticFilesStorePath],
             DefaultContentType = Constants.FileResponseHeader
         });
     }

@@ -375,6 +375,9 @@ public partial class SysDbContext
                 .HasComment("执行时间");
             configure.Property(x => x.ExecutionDuration)
                 .HasComment("执行耗时（毫秒）");
+            configure.Property(x => x.ClientInfo)
+                .HasMaxLength(200)
+                .HasComment("客户端请求信息（请求头User-Agent)");
 
             configure.HasIndex(x => x.ExecutionTime)
                 .HasDatabaseName("IX_ProjectAuditLog_ExecutionTime");

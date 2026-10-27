@@ -43,4 +43,8 @@ public class ProjectAuditLog : AggregateRoot<long>
     /// 执行异常
     /// </summary>
     public string? Exception { get; set; }
+    /// <summary>
+    /// 客户端请求信息（请求头User-Agent)
+    /// </summary>
+    public string ClientInfo { get; set; }
 }

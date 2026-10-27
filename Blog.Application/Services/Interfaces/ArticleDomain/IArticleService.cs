@@ -1,4 +1,5 @@
-﻿using Blog.Domain.ArticleDomain.DTO;
+﻿using Blog.Application.Attributes;
+using Blog.Domain.ArticleDomain.DTO;
 using Blog.Domain.ArticleDomain.Entity;
 using Blog.Domain.ArticleDomain.ValueObjects;
 using Blog.Shared;
@@ -6,6 +7,7 @@ using Blog.Shared.Enums;
 
 namespace Blog.Application.Services.Interfaces.ArticleDomain;
 
+[ServiceInjection]
 public interface IArticleService
 {
     public Task<string> SaveArticle(ArticleSaveModel article);

@@ -14,11 +14,11 @@ public class ArticleSource : AggregateRoot<long>
     /// <summary>
     /// 文章Id
     /// </summary>
-    public string ArticleId { get; set; }
+    public string ArticleId { get; private set; }
     /// <summary>
     /// 源地址/其他资源链接
     /// </summary>
-    public string Url { get; set; }
+    public string? Url { get; set; }
     /// <summary>
     /// 是否是超链接
     /// </summary>
@@ -26,5 +26,10 @@ public class ArticleSource : AggregateRoot<long>
     /// <summary>
     /// 创建时间
     /// </summary>
-    public DateTime? CreateTime { get; set; }
+    public DateTime? CreateTime { get;private set; } = DateTime.Now;
+
+    public void Attach(string articleId)
+    {
+        ArticleId = articleId;
+    }
 }

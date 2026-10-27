@@ -12,6 +12,9 @@ public static class Constants
     public const string DefaultUserAvatar = "default-user.png";
     public const int ChannelCapacity = 1024;
     public const int EOF = -1;
+    public const string StaticFiles = nameof(StaticFiles);
+    public const string StaticFilesRequestPath = StaticFiles + ":ReqeustPath";
+    public const string StaticFilesStorePath = StaticFiles + ":BasePath";
     
     public static TimeSpan LoginExpire { get; } = TimeSpan.FromDays(7);
     public static TimeSpan RegisterExpire { get; } = TimeSpan.FromMinutes(3);
