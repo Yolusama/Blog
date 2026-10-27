@@ -17,6 +17,11 @@ routes.push({
     name: 'Index',  
     component: () => import('../views/index.vue')
 });
+routes.push({
+    path: '/article/editor',
+    name: 'ArticleEditor',
+    component: () => import('../views/article/ArticleEditOrView.vue')
+});
 
 const router = createRouter({
     history: createWebHistory(),

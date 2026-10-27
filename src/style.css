@@ -216,6 +216,13 @@ code {
   }
 }
 
+#app:has(.editor-page) {
+  width: 100%;
+  max-width: none;
+  border-inline: none;
+  text-align: left;
+}
+
 #next-steps ul {
   list-style: none;
   padding: 0;

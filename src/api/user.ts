@@ -1,11 +1,12 @@
 import request from '../modules/Request'
 
 export interface User {
-    id: number;
+    userId: number;
     nickname: string;
     email: string;
     token: string,
     gender: number;
+    avatar: string;
 }
 export type UserLoginDTO = {
     email: string;

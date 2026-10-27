@@ -9,12 +9,17 @@ interface ResponseResult{
   message: string;
   data: any;
 }
-
+export const baseUrl = 'http://localhost:5575';
+export function getSource(sourceName:string,sourceKey?:string){
+  let src = baseUrl;
+  if(sourceKey)
+    src += "/files/" + sourceKey;
+  return `${src}/${sourceName}`;
+}
 const request = axios.create({
-  baseURL: 'http://localhost:5575', // Replace with your API base URL
+  baseURL: baseUrl, // Replace with your API base URL
   timeout: 1000*60*3,
-})
-
+});
 request.interceptors.request.use(
   config => {
     const user = stateStroge.get<User>("user")
@@ -49,5 +54,5 @@ export class HttpRequest {
     return request.patch(url, data, config).then(response => response.data as ResponseResult);
   }
 }
-const instance = new HttpRequest()
+const instance = new HttpRequest();
 export default instance;

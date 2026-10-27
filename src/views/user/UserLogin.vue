@@ -1,21 +1,21 @@
 <template>
     <div id="user-login">
-        <el-form label-width="120px" label-position="right" label-suffix=":">
+        <el-form :model="form" label-width="120px" label-position="right" label-suffix=":" :rules="rules">
             <h4 class="title">个人博客登录</h4>
             <div class="intro-img">
                 <el-image src="https://account.cnblogs.com/assets/img/sign-in-avatar.svg" fit="cover"
                     style="width: 80px; height: 80px;">
                 </el-image>
             </div>
-            <el-form-item label="电子邮箱" :rules="rules">
-                <el-input v-model="form.email" maxlength="50"></el-input>
+            <el-form-item label="电子邮箱" prop="email">
+                <el-input v-model="form.email" maxlength="50" type="email"></el-input>
             </el-form-item>
-            <el-form-item label="密码" v-if="!useVerificationCode">
+            <el-form-item label="密码" v-if="!useVerificationCode" prop="password">
                 <el-input type="password" v-model="plainPassword" show-password minlength="6" maxlength="20"
                     @input="encrpt"></el-input>
 
             </el-form-item>
-            <el-form-item label="验证码" v-if="useVerificationCode">
+            <el-form-item label="验证码" v-if="useVerificationCode"  prop="verificationCode">
                 <el-input v-model="form.verificationCode" maxlength="6">
                     <template #append>
                         <el-button @click="getVerificationCode" :disabled="hasGotCode">{{ countDownText
@@ -37,8 +37,8 @@
 import { GetVerificationCode, UserExists, Login, Register, VerifyToken, type UserLoginDTO, type User } from '../../api/user';
 import { reactive, ref, onBeforeMount } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage, ElNotification } from 'element-plus';
-import { encryptPassword, loading} from '../../modules/Utils';
+import { ElMessage, ElNotification, type FormRules } from 'element-plus';
+import { encryptPassword, loading } from '../../modules/Utils';
 import stateStroge from '../../modules/StateStorage';
 
 type UserLoginForm = {
@@ -47,14 +47,23 @@ type UserLoginForm = {
     verificationCode: string;
 };
 
-const rules = ref({
+const rules = ref<FormRules<UserLoginForm>>({
     email: [
         { required: true, message: '请输入电子邮箱', trigger: 'blur' },
         { type: 'email', message: '请输入有效的电子邮箱', trigger: 'blur' }
     ],
     password: [
-        { required: true, message: '请输入密码', trigger: 'blur' },
-        { min: 6, max: 20, message: '密码长度应为6-20个字符', trigger: 'blur' }
+        {
+            validator: (_rule, _value, callback) => {
+                if (!plainPassword.value)
+                    callback(new Error('请输入密码'));
+                else if (plainPassword.value.length < 6 || plainPassword.value.length > 20)
+                    callback(new Error('密码长度应为6-20个字符'));
+                else
+                    callback();
+            },
+            trigger: 'blur'
+        }
     ],
     verificationCode: [
         { required: true, message: '请输入验证码', trigger: 'blur' },
@@ -76,10 +85,10 @@ const router = useRouter();
 
 
 onBeforeMount(() => {
-    const user = stateStroge.get<User>("user");
+    const user = stateStroge.get<User>("User");
     if (!user) return;
     const loadingInstance = loading({ message: '正在登录...', duration: 0 });
-    VerifyToken(user.token, user.id)
+    VerifyToken(user.token, user.userId)
         .then(res => {
             if (!res.success) {
                 ElMessage.error(res.message);
@@ -98,7 +107,7 @@ onBeforeMount(() => {
 });
 
 async function encrpt() {
-    if (form.password.length < 6 || form.password.length > 20)
+    if (plainPassword.value.length < 6 || plainPassword.value.length > 20)
         return;
     if (!plainPassword.value) {
         form.password = '';
@@ -149,15 +158,22 @@ async function loginFunc() {
     if (useVerificationCode.value)
         data.verificationCode = form.verificationCode;
     const loadingInstance = loading({ message: '正在登录...', duration: 0 });
-    const loginRes = await Login(data, useVerificationCode.value);
-    if (loginRes.success) {
-        {
-            stateStroge.set("User", loginRes.data);
-            router.replace('/index');
-        }
-    } else
-        ElMessage.error(loginRes.message);
-    loadingInstance.close();
+    try {
+        const loginRes = await Login(data, useVerificationCode.value);
+        if (loginRes.success) {
+            {
+                stateStroge.set("User", loginRes.data);
+                router.replace('/index');
+            }
+        } else
+            ElMessage.error(loginRes.message);
+    } catch (error: unknown) {
+        ElMessage.error((error as Error).message);
+    }
+    finally {
+        loadingInstance.close();
+    }
+
 }
 
 function forgotPassword() {

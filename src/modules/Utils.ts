@@ -44,3 +44,11 @@ export function loading(options: LoadingOptions) {
     }
     return loading;
 }
+
+export function frameAnimate(func:Function){
+    const execution = ()=>{
+        requestAnimationFrame(execution);
+        func();
+    }
+    execution();
+}
