@@ -18,13 +18,32 @@
                 </div>
             </el-col>
             <el-col :span="6" class="header-actions">
-                <el-popover placement="bottom-end" trigger="click" :width="200">
+                <el-popover placement="bottom-end" trigger="click" :width="268" :popper-style="{ padding: '0' }">
                     <template #reference>
-                        <el-avatar circle :size="32" :src="getSource(user.avatar,'Images')" class="user-avatar" />
+                        <el-avatar circle :size="40" :src="getSource(user.avatar,'Images')" class="user-avatar" />
                     </template>
-                    <div class="user-info">
-                        <p class="user-name">{{ user.nickname || '未登录' }}</p>
-                        <p class="user-email">{{ user.email || '—' }}</p>
+                    <div class="user-card">
+                        <div class="user-card-profile">
+                            <el-avatar circle :size="56" :src="getSource(user.avatar,'Images')"
+                                class="user-card-avatar" />
+                            <span class="user-card-name">{{ user.nickname || '未登录' }}</span>
+                        </div>
+                        <el-link underline>{{ user.email || '' }}</el-link>
+                        <div class="user-card-stats">
+                            <div v-for="stat in stats" :key="stat.label" class="user-card-stat">
+                                <span class="stat-value">{{ stat.value }}</span>
+                                <span class="stat-label">{{ stat.label }}</span>
+                            </div>
+                        </div>
+                        <ul class="user-card-menu">
+                            <li v-for="item in menus" :key="item.key" class="user-card-menu-item"
+                                @click="handleMenuSelect(item.key)">
+                                <el-icon class="menu-icon">
+                                    <component :is="item.icon" />
+                                </el-icon>
+                                <span>{{ item.label }}</span>
+                            </li>
+                        </ul>
                     </div>
                 </el-popover>
                 <el-button type="warning" class="create-button" @click="createArticle">
@@ -35,12 +54,27 @@
                 </el-button>
             </el-col>
         </el-row>
+        <main class="home-content">
+            <section class="home-articles" aria-label="文章列表">
+                <h1 class="section-title">文章列表</h1>
+                <article-views v-model:query="articleQuery" :articles="articles" :loading="articlesLoading"
+                    max-height="calc(100vh - 190px)" @change="loadArticles" @create="createArticle"
+                    @article-click="openArticle" />
+            </section>
+            <aside class="home-sidebar">
+                <ArticleRanking />
+            </aside>
+        </main>
     </div>
 </template>
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { type User } from '../api/user';
+import { ElMessage } from 'element-plus';
+import { ArticleStatus, GetUserArticles, type ArticleListItem, type UserArticleQuery } from '../api/article';
+import type { Pagination } from '../modules/Request';
+import type { User } from '../api/user';
+import ArticleRanking from '../components/ArticleRanking.vue';
 import stateStorage from '../modules/StateStorage';
 import { getSource } from '../modules/Request';
 
@@ -51,6 +85,8 @@ onMounted(() => {
     if (storedUser) {
         user.value = storedUser;
     }
+    articleQuery.value.userId = storedUser?.userId ?? 0;
+    loadArticles();
 });
 
 function search() {
@@ -72,7 +108,68 @@ const user = ref<User>({
     avatar: ''
 });
 
+const articleQuery = ref<UserArticleQuery>({
+    userId: 0,
+    isDraft: false,
+    publishedStatus: ArticleStatus.Published,
+    isDeleted: false,
+    page: 1,
+    pageSize: 10,
+});
+const articlesLoading = ref(false);
+const articles = ref<Pagination<ArticleListItem>>({
+    page: 1,
+    pageSize: 10,
+    total: 0,
+    data: [],
+});
+
 let contentRequestId = 0;
+
+const stats = [
+    { label: '粉丝', value: '--' },
+    { label: '关注', value: '--' },
+    { label: '获赞', value: '--' }
+];
+
+const menus = [
+    { key: 'home', label: '我的主页', icon: 'House', path: '/index' },
+    { key: 'profile', label: '个人中心', icon: 'User', path: '' },
+    { key: 'content', label: '内容管理', icon: 'Opportunity', path: '/article/editor' }
+];
+
+function handleMenuSelect(key: string) {
+    const menu = menus.find(item => item.key === key);
+    if (menu?.path) {
+        router.push(menu.path);
+    }
+}
+
+async function loadArticles(query = articleQuery.value) {
+    articleQuery.value = query;
+    articlesLoading.value = true;
+    try {
+        const result = await GetUserArticles({ ...query });
+        if (!result.success) {
+            ElMessage.error(result.message);
+            return;
+        }
+        articles.value = result.data ?? {
+            page: query.page,
+            pageSize: query.pageSize,
+            total: 0,
+            data: [],
+        };
+    } catch (error) {
+        ElMessage.error(error instanceof Error ? error.message : '文章加载失败');
+    } finally {
+        articlesLoading.value = false;
+    }
+}
+
+function openArticle(article: ArticleListItem) {
+    router.push(`/article/editor/${article.articleId}`);
+}
 
 async function getRemoteContent(query: string) {
     const keyword = query.trim();
@@ -102,6 +199,32 @@ async function getRemoteContent(query: string) {
 .header {
     flex-wrap: nowrap;
     text-align: left;
+}
+
+.home-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 15%);
+    gap: 24px;
+    width: 100%;
+    max-width: 1440px;
+    margin: 24px auto 0;
+}
+
+.home-articles {
+    min-width: 0;
+    padding: 0 16px;
+}
+
+.section-title {
+    margin: 0;
+    padding: 0 4px 12px;
+    color: #222226;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.home-sidebar {
+    min-width: 0;
 }
 
 .header-logo,
@@ -147,23 +270,95 @@ async function getRemoteContent(query: string) {
     cursor: pointer;
 }
 
-.user-info {
+.user-card {
+    text-align: left;
+}
+
+.user-card-profile {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 16px 12px;
+}
+
+.user-card-avatar {
+    flex-shrink: 0;
+}
+
+.user-card-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--text-h);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.user-card-stats {
+    display: flex;
+    padding: 4px 0 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.user-card-stat {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    align-items: center;
+    gap: 6px;
 }
 
-.user-info p {
-    margin: 0;
-    line-height: 1.4;
-}
-
-.user-name {
+.stat-value {
+    font-size: 17px;
+    font-weight: 600;
     color: var(--text-h);
-    font-weight: 500;
 }
 
-.user-email {
+.stat-label {
     font-size: 13px;
+    color: #9c9ba1;
+}
+
+.user-card-menu {
+    list-style: none;
+    margin: 0;
+    padding: 8px 0;
+}
+
+.user-card-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    font-size: 16px;
+    color: var(--text-h);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.user-card-menu-item:hover {
+    background: var(--accent-bg);
+}
+
+.menu-icon {
+    font-size: 20px;
+    color: var(--text-h);
+}
+
+@media (max-width: 800px) {
+    .home-content {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 20px;
+    }
+
+    .home-articles {
+        padding: 0;
+    }
+
+    .home-sidebar {
+        margin-top: 20px;
+    }
 }
 </style>

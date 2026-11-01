@@ -18,9 +18,14 @@ routes.push({
     component: () => import('../views/index.vue')
 });
 routes.push({
-    path: '/article/editor',
+    path: '/article/editor/:articleId?',
     name: 'ArticleEditor',
     component: () => import('../views/article/ArticleEditOrView.vue')
+});
+routes.push({
+    path: '/article/creation',
+    name: 'ArticleCreation',
+    component: () => import('../views/article/UserCreationView.vue')
 });
 
 const router = createRouter({

@@ -54,5 +54,20 @@ export class HttpRequest {
     return request.patch(url, data, config).then(response => response.data as ResponseResult);
   }
 }
+
+export type Pagination<T> = {
+  page: number;
+  pageSize: number;
+  total: number;
+  data: T[];
+}
+
+export interface BasePageQuery
+{
+  page: number;
+  pageSize: number;
+  search?:string
+}
+
 const instance = new HttpRequest();
 export default instance;

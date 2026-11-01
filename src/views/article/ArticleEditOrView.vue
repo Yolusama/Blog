@@ -108,7 +108,7 @@
                 <el-input v-model="title" class="article-title" maxlength="100" placeholder="请输入文章标题（2～100个字）" />
 
                 <div class="editor-body">
-                    <VditorEditor v-model="markdown" :mode="viewMode" :onUpload="uploadSource"
+                    <VditorEditor v-model="articleContent.content" :mode="viewMode" :onUpload="uploadSource"
                         placeholder="使用 Markdown 写作，支持标题、列表、表格、代码块、图片、链接等" />
                 </div>
 
@@ -132,9 +132,15 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { onMounted, reactive, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import VditorEditor from '../../components/VditorEditor.vue';
+import { UploadFile } from '../../api/artcileSource.ts';
+import { ElMessage, ElNotification } from 'element-plus';
+import { type ArticleSaveModel, GetArticleContent, SaveArticle } from '../../api/article.ts';
+import stateStroge from '../../modules/StateStorage.ts';
+import { type User } from '../../api/user.ts';
+import { loading } from '../../modules/Utils.ts';
 
 /* 自定义工具栏类型先注释掉
 interface ToolMenuItem {
@@ -153,26 +159,80 @@ interface ToolItem {
 
 type ViewMode = 'ir' | 'wysiwyg' | 'sv';
 
+const route = useRoute();
 const router = useRouter();
 const title = ref('');
-const markdown = ref('');
 const isWide = ref(false);
 const viewMode = ref<ViewMode>('wysiwyg');
+const articleId = ref('');
+const articleContent = reactive<ArticleSaveModel>({
+    userId: 0,
+    isDraft: true,
+    sources: []
+});
 
 const viewModes: { label: string; value: ViewMode }[] = [
     { label: '即时渲染', value: 'ir' },
     { label: '所见即所得', value: 'wysiwyg' },
     { label: '分屏预览', value: 'sv' }
 ];
-onMounted(()=>{
-    const timeout = setTimeout(()=>{
+onMounted(() => {
+    const user = stateStroge.get<User>("User");
+    const articleIdVal = route.params.articleId as string;
+    const timeout = setTimeout(() => {
         isWide.value = true;
         clearTimeout(timeout);
-    },1000);
+    }, 1000);
+    if (articleIdVal)
+        articleId.value = articleIdVal;
+    if (!articleId.value.length) {
+        articleContent.userId = user.userId;
+        saveArticle(articleContent, true);
+    }
+    else
+        getArticleContent();
 })
 
-async function uploadSource(file:File) {
-    
+function saveArticle(model: ArticleSaveModel, init: boolean) {
+    SaveArticle(model)
+        .then(res => {
+            if (res.success) {
+                const successMsg = init ? '已保存为\"未命名\"' : "已保存";
+                ElMessage.success(successMsg);
+                if (!articleId.value.length)
+                    articleId.value = res.data;
+            }
+            else
+                ElMessage.error(res.message);
+        })
+        .catch(error => ElNotification.error(error));
+}
+
+function getArticleContent() {
+    const loadingInstance = loading({ message: "内容加载中...", duration: 0 });
+    GetArticleContent(articleId.value)
+        .then(res => {
+            if (res.success) 
+                Object.assign(articleContent, res.data);
+            else
+                ElMessage.error(res.message);
+        })
+        .catch(error => ElNotification.error(error))
+        .finally(() => loadingInstance.close());
+}
+
+function uploadSource(file: File) {
+    return new Promise<string>((resolve, reject) => {
+        UploadFile(file, articleId.value)
+            .then(res => {
+                if (!res.success) {
+                    ElMessage.error(res.message);
+                    resolve('');
+                }
+                else
+                    resolve(res.data);
+            }).catch(error => reject(error))
+    });
 }
 /* 自定义工具栏配置先注释掉
 const toolGroups: ToolItem[][] = [
