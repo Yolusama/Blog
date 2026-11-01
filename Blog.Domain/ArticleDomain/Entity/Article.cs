@@ -1,4 +1,5 @@
 ﻿using Blog.Shared;
+using Blog.Shared.Enums;
 using Blog.Shared.Functional;
 
 namespace Blog.Domain.ArticleDomain.Entity;
@@ -71,6 +72,26 @@ public class Article : AggregateRoot<string>
     /// 点踩数
     /// </summary>
     public int DislikeCount { get;private set; }
+    /// <summary>
+    /// 初始化保存,在手动保存后失效
+    /// </summary>
+    public bool SavedWhenInit { get; set; } = true;
+    /// <summary>
+    /// 发布状态
+    /// </summary>
+    public int? PublishStatus { get; set; }
+    /// <summary>
+    /// 收藏数
+    /// </summary>
+    public int CollectCount { get;private set; }
+    /// <summary>
+    /// 发布时间
+    /// </summary>
+    public DateTime? PublishTime { get; set; }
+    /// <summary>
+    /// 创作声明
+    /// </summary>
+    public string? CreationDeclaration { get; set; }
     public void Like()
     {
         LikeCount++;
@@ -93,6 +114,24 @@ public class Article : AggregateRoot<string>
     public void WhenUpload()
     {
         IsDraft = false;
+        PublishStatus = (int)ArticlePublishStatus.Auditing;
+        Publish();
+    }
+    
+    public void Collect()
+    {
+        CollectCount++;
+    }
+    
+    public void CancelCollect()
+    {
+        if(CollectCount > 0)
+            CollectCount--;
+    }
+    
+    public void Publish()
+    {
         UploadTime = DateTime.Now;
+        PublishStatus = (int)ArticlePublishStatus.Auditing;
     }
 }

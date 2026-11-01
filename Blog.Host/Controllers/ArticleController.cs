@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Blog.Controllers;
 
 [ApplicationService]
-public class ArticleController(IArticleService articleService) : ProjectControllerBase
+public class ArticleController(IArticleService articleService,IArticleSourceService articleSourceService) : ProjectControllerBase
 {
     [HttpGet]
     [Authorize]
@@ -17,11 +17,33 @@ public class ArticleController(IArticleService articleService) : ProjectControll
     {
         return await articleService.GetUserArticles(query);
     }
+
+    [HttpGet("{articleId}")]
+    [Authorize]
+    public async Task<ArticleSaveModel> GetArticleContent([FromRoute]string articleId)
+    {
+        return await articleService.GetArticleContent(articleId);
+    }
+    
     
     [HttpPut]
     [Authorize]
-    public async Task<string> SaveArticle([FromBody] ArticleSaveModel  model)
+    public async Task<string> SaveArticle([FromBody] ArticleSaveModel model)
     {
         return await articleService.SaveArticle(model);
+    }
+
+    [HttpPost]
+    [Authorize]
+    public async Task<string> HandleUpload(IFormFile file,[FromForm]string articleId)
+    {
+        return await articleSourceService.HandleUpload(file, articleId);
+    }
+    
+    [HttpGet]
+    [Authorize]
+    public async Task<ArticleRankingVO> GetArticleRanking()
+    {
+        return await articleService.GetArticleRanking();
     }
 }

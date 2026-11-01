@@ -123,7 +123,21 @@ public partial class SysDbContext
             .IsRequired()
             .HasMaxLength(100)
             .HasComment("文章封面");
-        
+        builder.Entity<Article>().Property(x => x.SavedWhenInit)
+            .HasColumnType("tinyint(1)")
+            .HasComment("初始化保存,在手动保存后失效");
+        builder.Entity<Article>() .Property(x => x.PublishTime)
+            .HasComment("发布时间")
+            .HasColumnType("datetime");
+        builder.Entity<Article>().Property(x=>x.CollectCount)
+            .HasComment("收藏数");
+        builder.Entity<Article>().Property(x=>x.PublishStatus)
+            .IsRequired(false)
+            .HasComment("发布状态");
+        builder.Entity<Article>().Property(x=>x.CreationDeclaration)
+            .HasMaxLength(256)
+            .HasComment("创作声明");
+
         builder.Entity<Article>()
             .HasIndex(e => e.AuthorId)
             .HasDatabaseName("IDX_Article_AuthorId");
@@ -133,6 +147,9 @@ public partial class SysDbContext
         builder.Entity<Article>()
             .HasIndex(e => e.IsDraft)
             .HasDatabaseName("IDX_Article_IsDraft");
+        builder.Entity<Article>()
+            .HasIndex(e => e.PublishStatus)
+            .HasDatabaseName("IDX_Article_PublishStatus");
 
         #endregion
 
@@ -169,6 +186,14 @@ public partial class SysDbContext
              .Property(x => x.Viewed)
              .HasColumnType("tinyint(1)")
              .HasComment("是否查看过");
+         builder.Entity<ArticleOptions>()
+             .Property(x => x.HasCommentedOn)
+             .HasColumnType("tinyint(1)")
+             .HasComment("是否已评论过该文章");
+         builder.Entity<ArticleOptions>()
+             .Property(x => x.HasCollected)
+             .HasColumnType("tinyint(1)")
+             .HasComment("是否已收藏该文章");
          builder.Entity<ArticleOptions>()
              .Property(x => x.CreateTime)
              .HasComment("创建时间");

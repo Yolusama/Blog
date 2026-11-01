@@ -33,6 +33,10 @@ public class ArticleOptions : AggregateRoot<long>
     /// </summary>
     public bool HasCommentedOn { get; set; }
     /// <summary>
+    /// 是否已收藏该文章
+    /// </summary>
+    public bool HasCollected { get; set; }
+    /// <summary>
     /// 创建时间
     /// </summary>
     public DateTime? CreateTime { get; private set; } = DateTime.Now;

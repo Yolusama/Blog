@@ -17,8 +17,9 @@ public static class Expansions
     /// <param name="dest">目标拷贝实体</param>
     /// <typeparam name="T1">源类型</typeparam>
     /// <typeparam name="T2">目标类型</typeparam>
+    /// <param name="afterCopy">执行完拷贝时的其他操作</param>
     /// <returns>拷贝后的实体</returns>
-    public static T2 ShallowCopy<T1, T2>(this T1 src, T2? dest = default)
+    public static T2 ShallowCopy<T1, T2>(this T1 src, T2? dest = default,Action<T1,T2>? afterCopy = null)
     {
         if(dest == null)
             dest = Activator.CreateInstance<T2>();
@@ -35,6 +36,9 @@ public static class Expansions
                property.SetValue(dest, value);
            }
         }
+
+        if (afterCopy != null)
+            afterCopy.Invoke(src, dest);
         return dest;
     }
     
@@ -44,10 +48,11 @@ public static class Expansions
     /// <param name="src">源实体集合</param>
     /// <typeparam name="T1">源类型</typeparam>
     /// <typeparam name="T2">目标类型</typeparam>
+    ///  <param name="afterCopy">执行完拷贝时的其他操作</param>
     /// <returns>拷贝后的实体集合</returns>
-    public static IEnumerable<T2> ShallowCopy<T1, T2>(this IEnumerable<T1> src)
+    public static IEnumerable<T2> ShallowCopy<T1, T2>(this IEnumerable<T1> src,Action<T1,T2>? afterCopy = null)
     {
-        return src.Select(x => x.ShallowCopy<T1,T2>());
+        return src.Select(x => x.ShallowCopy(default,afterCopy));
     }
 
     /// <summary>
@@ -58,8 +63,9 @@ public static class Expansions
     /// <param name="dest">目标拷贝实体</param>
     /// <typeparam name="T1">源类型</typeparam>
     /// <typeparam name="T2">目标类型</typeparam>
+    ///  <param name="afterCopy">执行完拷贝时的其他操作</param>
     /// <returns>拷贝后的实体</returns>
-    public static T2 DeepCopy<T1, T2>(this T1 src, T2? dest = default)
+    public static T2 DeepCopy<T1, T2>(this T1 src, T2? dest = default,Action<T1,T2>? afterCopy = null)
     {
         if(dest == null)
             dest = Activator.CreateInstance<T2>();
@@ -82,6 +88,8 @@ public static class Expansions
                 }
             }
         }
+        if(afterCopy!=null)
+            afterCopy.Invoke(src,dest);
         return dest;
     }
     
@@ -91,10 +99,12 @@ public static class Expansions
     /// <param name="src">源实体集合</param>
     /// <typeparam name="T1">源类型</typeparam>
     /// <typeparam name="T2">目标类型</typeparam>
+    /// <param name="afterCopy">执行完拷贝时的其他操作</param>
     /// <returns>拷贝后的实体集合</returns>
-    public static IEnumerable<T2> DeepCopy<T1, T2>(this IEnumerable<T1> src)
+
+    public static IEnumerable<T2> DeepCopy<T1, T2>(this IEnumerable<T1> src,Action<T1,T2>? afterCopy = null)
     {
-        return src.Select(x => x.DeepCopy<T1,T2>());
+        return src.Select(x => x.DeepCopy(default,afterCopy));
     }
 
     public static void SafeDispose(this IDisposable disposable)
@@ -108,7 +118,7 @@ public static class Expansions
 
     public static BasePageQueryResult<T> ToPagedResult<T>(this IEnumerable<T> result, int page, int pageSize,long total)
     {
-         return new BasePageQueryResult<T>()
+         return new BasePageQueryResult<T>
          {
              Data = result.ToList(),
              Page = page,

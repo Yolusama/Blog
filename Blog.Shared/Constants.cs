@@ -13,9 +13,14 @@ public static class Constants
     public const int ChannelCapacity = 1024;
     public const int EOF = -1;
     public const string StaticFiles = nameof(StaticFiles);
-    public const string StaticFilesRequestPath = StaticFiles + ":ReqeustPath";
+    public const string StaticFilesRequestPath = StaticFiles + ":RequestPath";
     public const string StaticFilesStorePath = StaticFiles + ":BasePath";
-    
+    public const string Untitled = "未命名";
+    public const int UserMaxDraftCount = 5;
+    public const int ArticleRankingMaxCount = 10;
+    public const int Week = 7;
+    public const int HalfMonth = 15;
+
     public static TimeSpan LoginExpire { get; } = TimeSpan.FromDays(7);
     public static TimeSpan RegisterExpire { get; } = TimeSpan.FromMinutes(3);
     public static JsonSerializerOptions SmallCamelcase { get; } = new JsonSerializerOptions

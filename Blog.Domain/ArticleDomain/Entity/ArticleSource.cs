@@ -1,4 +1,5 @@
 ﻿using Blog.Shared;
+using Blog.Shared.Utils;
 
 namespace Blog.Domain.ArticleDomain.Entity;
 
@@ -31,5 +32,12 @@ public class ArticleSource : AggregateRoot<long>
     public void Attach(string articleId)
     {
         ArticleId = articleId;
+    }
+
+    public void Delete(string root,int userId)
+    {
+        var filePath = Path.Combine(root, userId.ToString(),
+            FileName);
+        FileUtil.RemoveFile(filePath);
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Linq.Expressions;
+using System.Net;
 using Blog.Application.Attributes;
 using Blog.Application.Services.Interfaces.ArticleDomain;
 using Blog.Domain.ArticleDomain.Entity;
@@ -17,6 +18,7 @@ namespace Blog.Application.Services.ArticleDomain;
 
 [ServiceInjection]
 public class ArticleService(ILogger<ArticleService> logger,
+    IConfiguration configuration,
     IRepository<Article,string> articleRepository,
     IRepository<ArticleSource,long> articleSourceRepository,
     IRepository<ArticleOptions,long> articleOptionsRepository,
@@ -27,11 +29,20 @@ public class ArticleService(ILogger<ArticleService> logger,
     public async Task<string> SaveArticle(ArticleSaveModel model)
     {
         if(!model.IsDraft) throw new ServiceException("无法再保存已发布的文章");
-        var article = await articleRepository.All.FirstOrDefaultAsync(a => a.Id == model.ArticleId);
+        var article = await articleRepository.NoTracking.FirstOrDefaultAsync(a => a.Id == model.ArticleId);
         if (article == null)
         {
             article = new Article(model.IsDraft);
             model.ArticleId = article.Id;
+            if (string.IsNullOrEmpty(model.Title))
+            {
+                var draftCount =await articleRepository.NoTracking.Where(a=>!a.IsDeleted && a.IsDraft)
+                    .Where(a=>a.AuthorId == model.UserId)
+                    .CountAsync();
+                if (draftCount >= Constants.UserMaxDraftCount)
+                    throw new ServiceException("用户最多拥有五份草稿！");
+                model.Title = Constants.Untitled + '-' + (draftCount + 1);
+            }
             model.ShallowCopy(article);
             if (model.Sources.Count > 0)
             {
@@ -43,6 +54,8 @@ public class ArticleService(ILogger<ArticleService> logger,
         else
         {
             model.ShallowCopy(article);
+            if (article.SavedWhenInit)
+                article.SavedWhenInit = false;
             var sourceIds = model.Sources.Select(s => s.SourceId)
                 .ToList();
             var sources = articleSourceRepository.All.Where(s => s.ArticleId == model.ArticleId)
@@ -51,7 +64,13 @@ public class ArticleService(ILogger<ArticleService> logger,
             var expectIds = dbSourceIds.Except(sourceIds.Where(s => s != 0)).ToList();
             if (expectIds.Count > 0)
             {
-                articleSourceRepository.DeleteRange(sources.Where(s => !expectIds.Contains(s.Id)).ToArray());
+                var toDelete = sources.Where(s => !expectIds.Contains(s.Id)).ToArray();
+                foreach (var item in toDelete)
+                {
+                    if(item.IsHyperLink)continue;
+                    item.Delete(configuration[Constants.StaticFilesStorePath],article.AuthorId);
+                    articleSourceRepository.Delete(item);
+                }
                 articleSourceRepository.UpdateRange(model.Sources.Where(s => s.SourceId != 0
                                                                              && !expectIds.Contains(s.SourceId))
                     .ShallowCopy<ArticleSourceModel, ArticleSource>().ToArray());
@@ -75,8 +94,8 @@ public class ArticleService(ILogger<ArticleService> logger,
                 x.Article.Title.Contains(query.Search) || x.Article.Abstract.Contains(query.Search)
                                                        || x.User.Nickname.Contains(query.Search))
             .Where(x => x.Article.AuthorId == query.UserId && x.Article.IsDraft == query.IsDraft)
-            .OrderByDescending(x => x.Article.UploadTime)
             .Count(out var total)
+            .OrderByDescending(x => x.Article.UploadTime)
             .Page(query.Page, query.PageSize)
             .Select(x => new UserArticleVO
             {
@@ -109,9 +128,9 @@ public class ArticleService(ILogger<ArticleService> logger,
             .WhereIf(!string.IsNullOrEmpty(query.Search), x =>
                 x.Article.Title.Contains(query.Search) || x.Article.Abstract.Contains(query.Search)
                                                        || x.User.Nickname.Contains(query.Search))
+            .Count(out var total)
             .OrderByDescending(x => x.Article.UploadTime)
             .Page(query.Page, query.PageSize)
-            .Count(out var total)
             .Select(x => new UserArticleVO
             {
                 ArticleId = x.Article.Id,
@@ -133,6 +152,81 @@ public class ArticleService(ILogger<ArticleService> logger,
                 .CountAsync();
         }
         return articles.ToPagedResult(query.Page, query.PageSize, total);
+    }
+
+    public async Task<ArticleSaveModel> GetArticleContent(string articleId)
+    {
+        var article = await articleRepository.NoTracking
+            .Where(a=>a.Id == articleId && !a.IsDeleted)
+            .SingleOrDefaultAsync();
+        if (article == null)
+            throw new ServiceException("文章已不存在",404);
+        var sources = await articleSourceRepository.NoTracking
+            .Where(s => s.ArticleId == articleId)
+            .ToListAsync();
+        var model = new ArticleSaveModel();
+        model.ArticleId = article.Id;
+        article.ShallowCopy(model);
+        model.Sources = sources.ShallowCopy<ArticleSource,ArticleSourceModel>().ToList();
+        return model;
+    }
+
+    public async Task<ArticleRankingVO> GetArticleRanking()
+    { 
+       var ranking = new ArticleRankingVO();
+       Expression<Func<Article, bool>> filter = a => !a.IsDraft && !a.IsDeleted;
+       var dailyRankingContents = await articleRepository
+           .NoTracking
+           .Where(a=>a.PublishTime.Value.Date == DateTime.Today)
+           .Where(filter)
+           .OrderByDescending(x=>x.ViewCount)
+           .Take(Constants.ArticleRankingMaxCount)
+           .Select(a=> new ArticleRankingVO.ArticleRankingContent
+           {
+               ArticleId = a.Id,
+               ArticleTitle = a.Title
+           })
+           .ToListAsync();
+       ranking.SetDaily(dailyRankingContents);
+       var weeklyRankingContents = await articleRepository
+           .NoTracking
+           .Where(a=>a.PublishTime.Value.Date >= DateTime.Today.AddDays(-1*Constants.Week) && a.PublishTime.Value.Date <= DateTime.Today)
+           .Where(filter)
+           .OrderByDescending(x=>x.ViewCount)
+           .Take(Constants.ArticleRankingMaxCount)
+           .Select(a=> new ArticleRankingVO.ArticleRankingContent
+           {
+               ArticleId = a.Id,
+               ArticleTitle = a.Title
+           })
+           .ToListAsync();
+       ranking.SetWeekly(weeklyRankingContents);
+       var halfMonthlyRankingContents = await articleRepository
+           .NoTracking
+           .Where(a=>a.PublishTime.Value.Date >= DateTime.Today.AddDays(-1*Constants.HalfMonth) && a.PublishTime.Value.Date <= DateTime.Today)
+           .Where(filter)
+           .OrderByDescending(x=>x.ViewCount)
+           .Take(Constants.ArticleRankingMaxCount)
+           .Select(a=> new ArticleRankingVO.ArticleRankingContent
+           {
+               ArticleId = a.Id,
+               ArticleTitle = a.Title
+           })
+           .ToListAsync();
+       ranking.SetHalfMonthly(halfMonthlyRankingContents);
+       return ranking;
+    }
+
+    public async Task RemoveArticle(string articleId)
+    {
+        var article =await articleRepository.All.FirstOrDefaultAsync(a => a.Id == articleId);
+        if (article == null)
+            throw new ServiceException("文章已不存在", 404);
+        if (article.IsDraft && article.SavedWhenInit)
+          await  RemoveArticleAllContent(article);
+        else
+            article.IsDeleted = true;
+        articleRepository.Update(article);
     }
 
     public async Task ViewArticle(string articleId, int userId)
@@ -239,5 +333,53 @@ public class ArticleService(ILogger<ArticleService> logger,
             articleCommentOptionsRepository.Update(commentOptions);
         else 
             await articleCommentOptionsRepository.AddAsync(commentOptions);
+    }
+
+    public async Task CollectArticle(string articleId, int userId, bool toCollect)
+    {
+        var article = await articleRepository.NoTracking.FirstOrDefaultAsync(a => a.Id == articleId);
+        if (article == null)
+            throw new ServiceException("文章不存在", (int)HttpStatusCode.NotFound);
+
+        bool optionsInit = false;
+        var options = await articleOptionsRepository.All.FirstOrDefaultAsync(o => o.ArticleId == articleId && o.UserId == userId);
+        if (options == null)
+        {
+            options = new ArticleOptions(articleId, userId);
+            await articleOptionsRepository.AddAsync(options);
+            optionsInit = true;
+        }
+
+        if (toCollect)
+        {
+            article.Collect();
+            options.HasCollected = true;
+        }
+        else
+        {
+            article.CancelCollect();
+            options.HasCollected = false;
+        }
+
+        if (!optionsInit)
+            articleOptionsRepository.Update(options);
+    }
+
+    private async Task RemoveArticleAllContent(Article article)
+    {
+        articleRepository.Delete(article);
+        var options = await articleOptionsRepository.All.FirstOrDefaultAsync(o => o.ArticleId == article.Id);
+        if(options != null)
+            articleOptionsRepository.Delete(options);
+        var comments = await articleCommentRepository.All.Where(ac=>ac.ArticleId == article.Id).ToArrayAsync();
+        if(comments.Length > 0 )
+            articleCommentRepository.DeleteRange(comments);
+        var sources = await articleSourceRepository.All.Where(ac => ac.ArticleId == article.Id).ToArrayAsync();
+        if (sources.Length > 0)
+        {
+            foreach (var source in sources.AsEnumerable())
+               source.Delete(configuration[Constants.StaticFilesStorePath],article.AuthorId);
+            articleSourceRepository.DeleteRange(sources);
+        }
     }
 }

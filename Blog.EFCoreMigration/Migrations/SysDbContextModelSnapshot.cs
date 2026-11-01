@@ -38,6 +38,10 @@ namespace Blog.EFCoreMigration.Migrations
                         .HasColumnType("int")
                         .HasComment("作者Id");
 
+                    b.Property<int>("CollectCount")
+                        .HasColumnType("int")
+                        .HasComment("收藏数");
+
                     b.Property<string>("Content")
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)")
@@ -53,6 +57,11 @@ namespace Blog.EFCoreMigration.Migrations
                         .HasColumnType("datetime")
                         .HasComment("创建时间");
 
+                    b.Property<string>("CreationDeclaration")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)")
+                        .HasComment("创作声明");
+
                     b.Property<int>("DislikeCount")
                         .HasColumnType("int")
                         .HasComment("点踩数");
@@ -67,6 +76,18 @@ namespace Blog.EFCoreMigration.Migrations
                     b.Property<int>("LikeCount")
                         .HasColumnType("int")
                         .HasComment("点赞数");
+
+                    b.Property<int?>("PublishStatus")
+                        .HasColumnType("int")
+                        .HasComment("发布状态");
+
+                    b.Property<DateTime?>("PublishTime")
+                        .HasColumnType("datetime")
+                        .HasComment("发布时间");
+
+                    b.Property<bool>("SavedWhenInit")
+                        .HasColumnType("tinyint(1)")
+                        .HasComment("初始化保存,在手动保存后失效");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -96,6 +117,9 @@ namespace Blog.EFCoreMigration.Migrations
 
                     b.HasIndex("IsDraft")
                         .HasDatabaseName("IDX_Article_IsDraft");
+
+                    b.HasIndex("PublishStatus")
+                        .HasDatabaseName("IDX_Article_PublishStatus");
 
                     b.ToTable("Article", null, t =>
                         {
@@ -244,8 +268,13 @@ namespace Blog.EFCoreMigration.Migrations
                         .HasColumnType("tinyint(1)")
                         .HasComment("是否点踩");
 
+                    b.Property<bool>("HasCollected")
+                        .HasColumnType("tinyint(1)")
+                        .HasComment("是否已收藏该文章");
+
                     b.Property<bool>("HasCommentedOn")
-                        .HasColumnType("tinyint(1)");
+                        .HasColumnType("tinyint(1)")
+                        .HasComment("是否已评论过该文章");
 
                     b.Property<bool>("Liked")
                         .HasColumnType("tinyint(1)")
@@ -308,7 +337,6 @@ namespace Blog.EFCoreMigration.Migrations
                         .HasComment("是否是超链接");
 
                     b.Property<string>("Url")
-                        .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)")
                         .HasComment("源地址/其他资源链接");
