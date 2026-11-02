@@ -122,14 +122,15 @@ public class ArticleService(ILogger<ArticleService> logger,
 
     public async Task<BasePageQueryResult<UserArticleVO>> GetRecentArticles(ArticleQuery query)    
     {
-        var articles = await articleRepository.NoTracking.Where(a => !a.IsDeleted)
+        var articles = await articleRepository.NoTracking.Where(a => !a.IsDeleted && !a.IsDraft
+                && a.PublishStatus == (int)ArticlePublishStatus.Published)
             .Join(userRepository.NoTracking.Where(e => e.Status == (int)UserStatus.Normal),
                 a => a.AuthorId, u => u.Id, (a, u) => new { Article = a, User = u })
             .WhereIf(!string.IsNullOrEmpty(query.Search), x =>
                 x.Article.Title.Contains(query.Search) || x.Article.Abstract.Contains(query.Search)
                                                        || x.User.Nickname.Contains(query.Search))
             .Count(out var total)
-            .OrderByDescending(x => x.Article.UploadTime)
+            .OrderByDescending(x => x.Article.PublishTime)
             .Page(query.Page, query.PageSize)
             .Select(x => new UserArticleVO
             {

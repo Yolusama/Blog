@@ -17,6 +17,13 @@ public class ArticleController(IArticleService articleService,IArticleSourceServ
     {
         return await articleService.GetUserArticles(query);
     }
+    
+    [HttpGet]
+    [Authorize]
+    public async Task<BasePageQueryResult<UserArticleVO>> GetRecentArticles([FromQuery] ArticleQuery query)
+    {
+        return await articleService.GetRecentArticles(query);
+    }
 
     [HttpGet("{articleId}")]
     [Authorize]
@@ -24,7 +31,6 @@ public class ArticleController(IArticleService articleService,IArticleSourceServ
     {
         return await articleService.GetArticleContent(articleId);
     }
-    
     
     [HttpPut]
     [Authorize]

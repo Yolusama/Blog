@@ -60,12 +60,12 @@ public class UserLoginService(
 
     public async Task<bool> VerifyToken(UserVerifyTokenDTO verifyTokenDto)
     {
-        var userInfo = jwtService.Parse<UserJwtInfo>(verifyTokenDto.Token);
-        if(userInfo.UserId != verifyTokenDto.UserId)
-            return false;
         var key = $"{verifyTokenDto.UserId}_{RedisCachingKeys.UserToken}";
         if (!await redis.ExistsAsync(key))
-            return false;
+            throw new ServiceException("没有授权令牌或者令牌已过期", 401);
+        var userInfo = jwtService.Parse<UserJwtInfo>(verifyTokenDto.Token);
+        if(userInfo.UserId != verifyTokenDto.UserId)
+            throw new ServiceException("令牌用户ID不匹配", 401);
         var token = await redis.GetAsync<string>(key);
         return token == verifyTokenDto.Token;
     }
