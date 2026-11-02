@@ -14,7 +14,9 @@
         <ol class="ranking-list">
             <li v-for="(article, index) in rankings[activePeriod]" :key="article" class="ranking-item">
                 <span class="ranking-number" :class="{ 'is-top': index < 3 }">{{ index + 1 }}</span>
-                <a class="ranking-article" href="#" @click.prevent>{{ article }}</a>
+                <el-tooltip :content="article" placement="top" :show-after="300">
+                    <a class="ranking-article" href="#" @click.prevent>{{ article }}</a>
+                </el-tooltip>
             </li>
         </ol>
     </section>
@@ -113,6 +115,8 @@ const rankings: Record<RankingPeriod, string[]> = {
 }
 
 .ranking-list {
+    display: grid;
+    grid-template-rows: repeat(10, minmax(62px, auto));
     margin: 0;
     padding: 8px 18px 14px;
     list-style: none;
@@ -150,7 +154,11 @@ const rankings: Record<RankingPeriod, string[]> = {
 }
 
 .ranking-article:hover {
-    color: #fc5531;
+    color: #1677ff;
+    text-decoration: underline;
+    text-decoration-color: #1677ff;
+    text-underline-offset: 3px;
+    cursor:pointer;
 }
 
 @media (max-width: 640px) {

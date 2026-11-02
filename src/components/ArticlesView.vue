@@ -52,7 +52,8 @@
             <div v-else class="article-empty">
                 <slot name="empty">
                     <el-empty description="当前内容为空">
-                        <el-button type="primary" class="create-button" @click="handleCreate">创建文章</el-button>
+                        <el-button v-if="withUserCreation" type="primary" class="create-button"
+                            @click="handleCreate">创建文章</el-button>
                     </el-empty>
                 </slot>
             </div>
@@ -64,7 +65,7 @@
                 加载中...
             </span>
             <transition name="footer-fade">
-                <span v-if="reachEndVisible" class="footer-end">已经到达了</span>
+                <span v-if="reachEndVisible" class="footer-end">已经到底了</span>
             </transition>
         </div>
 

@@ -57,8 +57,8 @@
         <main class="home-content">
             <section class="home-articles" aria-label="文章列表">
                 <h1 class="section-title">文章列表</h1>
-                <article-views v-model:query="articleQuery" :articles="articles" :loading="articlesLoading"
-                    max-height="calc(100vh - 190px)" @change="loadArticles" @create="createArticle"
+                <articles-view v-model:query="articleQuery" :articles="articles" :loading="articlesLoading"
+                    max-height="calc(100vh - 190px)" @change="loadArticles" @create="createArticle" :withUserCreation="false"
                     @article-click="openArticle" />
             </section>
             <aside class="home-sidebar">
@@ -71,8 +71,8 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { ArticleStatus, GetUserArticles, type ArticleListItem, type UserArticleQuery } from '../api/article';
-import type { Pagination } from '../modules/Request';
+import { GetRecentArticles, type ArticleListItem } from '../api/article';
+import type { BasePageQuery, Pagination } from '../modules/Request';
 import type { User } from '../api/user';
 import ArticleRanking from '../components/ArticleRanking.vue';
 import stateStorage from '../modules/StateStorage';
@@ -85,7 +85,6 @@ onMounted(() => {
     if (storedUser) {
         user.value = storedUser;
     }
-    articleQuery.value.userId = storedUser?.userId ?? 0;
     loadArticles();
 });
 
@@ -108,11 +107,7 @@ const user = ref<User>({
     avatar: ''
 });
 
-const articleQuery = ref<UserArticleQuery>({
-    userId: 0,
-    isDraft: false,
-    publishedStatus: ArticleStatus.Published,
-    isDeleted: false,
+const articleQuery = ref<BasePageQuery>({
     page: 1,
     pageSize: 10,
 });
@@ -149,7 +144,7 @@ async function loadArticles(query = articleQuery.value) {
     articleQuery.value = query;
     articlesLoading.value = true;
     try {
-        const result = await GetUserArticles({ ...query });
+        const result = await GetRecentArticles({ ...query });
         if (!result.success) {
             ElMessage.error(result.message);
             return;
@@ -203,7 +198,7 @@ async function getRemoteContent(query: string) {
 
 .home-content {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(200px, 15%);
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 30%);
     gap: 24px;
     width: 100%;
     max-width: 1440px;

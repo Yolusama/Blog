@@ -22,11 +22,11 @@ const request = axios.create({
 });
 request.interceptors.request.use(
   config => {
-    const user = stateStroge.get<User>("user")
+    const user = stateStroge.get<User>("User");
     if (user) 
-      config.headers.Authorization = `Bearer ${user.token}`
+      config.headers.Authorization = `Bearer ${user.token}`;
   
-    return config
+    return config;
   },
   error => {
     return Promise.reject(error)

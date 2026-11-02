@@ -63,3 +63,7 @@ export function GetUserArticles(query:UserArticleQuery)
 {
    return request.get("/api/Article/GetUserArticles",{params:query});
 }
+
+export function GetRecentArticles(query:BasePageQuery){
+  return request.get("/api/Article/GetRecentArticles",{params:query});
+}
