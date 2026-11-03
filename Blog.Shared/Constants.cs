@@ -10,6 +10,7 @@ public static class Constants
     public const string MigrationDb = nameof(MigrationDb);
     public const string FileResponseHeader = "application/octet-stream";
     public const string DefaultUserAvatar = "default-user.png";
+    public const string DefaultArticleCover = "default-cover.jpg";
     public const int ChannelCapacity = 1024;
     public const int EOF = -1;
     public const string StaticFiles = nameof(StaticFiles);

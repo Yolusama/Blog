@@ -67,7 +67,14 @@ public class UserLoginService(
         if(userInfo.UserId != verifyTokenDto.UserId)
             throw new ServiceException("令牌用户ID不匹配", 401);
         var token = await redis.GetAsync<string>(key);
-        return token == verifyTokenDto.Token;
+        var res = token == verifyTokenDto.Token;
+        if (res)
+        {
+            var user = userRepository.NoTracking.First(u => u.Id == verifyTokenDto.UserId);
+            user.LastLoginTime = DateTime.Now;
+            userRepository.Update(user);
+        }
+        return res;
     }
 
     public async Task Register(UserRegisterDTO registerDto)

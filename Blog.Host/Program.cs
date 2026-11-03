@@ -17,7 +17,6 @@ builder.Services.EnableAutoConfig(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddControllers(options =>
 {
-    options.Filters.Add<GlobalExceptionHandler>();
     options.Filters.Add<UnitOfWorkFilter>();
     options.Filters.Add<ResponseResultFilter>();
 });
@@ -45,7 +44,6 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddScoped<UnitOfWorkFilter>();
-builder.Services.AddScoped<GlobalExceptionHandler>();
 builder.Services.AddScoped<ResponseResultFilter>();
 
 builder.Services.AddDbContext<SysDbContext>(options =>

@@ -33,6 +33,8 @@ public class ArticleService(ILogger<ArticleService> logger,
         if (article == null)
         {
             article = new Article(model.IsDraft);
+            article.AuthorId = model.UserId;
+            article.Cover = Constants.DefaultArticleCover;
             model.ArticleId = article.Id;
             if (string.IsNullOrEmpty(model.Title))
             {
@@ -88,6 +90,9 @@ public class ArticleService(ILogger<ArticleService> logger,
     public async Task<BasePageQueryResult<UserArticleVO>> GetUserArticles(UserArticleQuery query)
     {
         var articles = await articleRepository.NoTracking.Where(a => !a.IsDeleted)
+            .WhereIf(query.IsDeleted.HasValue, a => a.IsDeleted == query.IsDeleted)
+            .WhereIf(query.IsDraft.HasValue, a => a.IsDraft == query.IsDraft)
+            .WhereIf(query.PublishStatus.HasValue, a => a.PublishStatus == query.PublishStatus)
             .Join(userRepository.NoTracking.Where(e => e.Status == (int)UserStatus.Normal),
                 a => a.AuthorId, u => u.Id, (a, u) => new { Article = a, User = u })
             .WhereIf(!string.IsNullOrEmpty(query.Search), x =>
@@ -109,7 +114,8 @@ public class ArticleService(ILogger<ArticleService> logger,
                 AuthorAvatar = x.User.Avatar,
                 DislikeCount = x.Article.DislikeCount,
                 LikeCount = x.Article.LikeCount,
-                ViewCount = x.Article.ViewCount
+                ViewCount = x.Article.ViewCount,
+                CollectCount = x.Article.CollectCount
             }).ToListAsync();
         foreach (var article in articles)
         {
@@ -144,7 +150,8 @@ public class ArticleService(ILogger<ArticleService> logger,
                 AuthorAvatar = x.User.Avatar,
                 DislikeCount = x.Article.DislikeCount,
                 LikeCount = x.Article.LikeCount,
-                ViewCount = x.Article.ViewCount
+                ViewCount = x.Article.ViewCount,
+                CollectCount = x.Article.CollectCount
             }).ToListAsync();
         foreach (var article in articles)
         {

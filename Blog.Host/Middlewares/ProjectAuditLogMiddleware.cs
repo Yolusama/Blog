@@ -2,6 +2,8 @@
 using System.Text.Json;
 using Blog.Infrastructure;
 using Blog.Shared;
+using Blog.Shared.Exceptions;
+using Blog.Shared.Functional;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -61,7 +63,13 @@ public class ProjectAuditLogMiddleware(
         catch (Exception e)
         {
             exception = e.ToString();
-            throw;
+            logger.LogError("{e}", e);
+            httpContext.Response.ContentType = "application/json";
+            var failResult = ResponseResult.Fail(e.Message);
+            if(e is ServiceException serviceException)
+                failResult.Code = serviceException.Code;
+            await httpContext.Response
+                .WriteAsync(failResult.ToJson(Constants.SmallCamelcase));
         }
         finally
         {

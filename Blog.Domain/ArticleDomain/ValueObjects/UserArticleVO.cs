@@ -35,4 +35,5 @@ public class UserArticleVO
     public int LikeCount { get; set; }
     public int DislikeCount { get; set; }
     public int CommentCount { get; set; }
+    public int CollectCount { get; set; }
 }
