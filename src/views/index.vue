@@ -28,7 +28,13 @@
                                 class="user-card-avatar" />
                             <span class="user-card-name">{{ user.nickname || '未登录' }}</span>
                         </div>
-                        <el-link underline>{{ user.email || '' }}</el-link>
+                        <div class="user-card-email" :class="{ 'is-empty': !user.email }"
+                            :title="user.email || '未绑定邮箱'">
+                            <el-icon class="user-card-email-icon">
+                                <Message />
+                            </el-icon>
+                            <span class="user-card-email-text">{{ user.email || '未绑定邮箱' }}</span>
+                        </div>
                         <div class="user-card-stats">
                             <div v-for="stat in stats" :key="stat.label" class="user-card-stat">
                                 <span class="stat-value">{{ stat.value }}</span>
@@ -77,6 +83,7 @@ import type { User } from '../api/user';
 import ArticleRanking from '../components/ArticleRanking.vue';
 import stateStorage from '../modules/StateStorage';
 import { getSource } from '../modules/Request';
+import { Route } from '../modules/Route.ts';
 
 const router = useRouter();
 
@@ -129,15 +136,14 @@ const stats = [
 
 const menus = [
     { key: 'home', label: '我的主页', icon: 'House', path: '/index' },
-    { key: 'profile', label: '个人中心', icon: 'User', path: '' },
-    { key: 'content', label: '内容管理', icon: 'Opportunity', path: '/article/editor' }
+    { key: 'profile', label: '个人中心', icon: 'User', path: '/user/profile' },
+    { key: 'content', label: '内容管理', icon: 'Opportunity', path: '/article/creation' }
 ];
 
 function handleMenuSelect(key: string) {
     const menu = menus.find(item => item.key === key);
-    if (menu?.path) {
-        router.push(menu.path);
-    }
+    if (menu?.path) 
+        Route.open(menu.path);
 }
 
 async function loadArticles(query = articleQuery.value) {
@@ -272,6 +278,7 @@ async function getRemoteContent(query: string) {
 .user-card-profile {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 14px;
     padding: 16px 16px 12px;
 }
@@ -291,9 +298,46 @@ async function getRemoteContent(query: string) {
     text-overflow: ellipsis;
 }
 
+.user-card-email {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 16px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--accent-bg);
+    color: #6b6a72;
+    font-size: 13px;
+    line-height: 1.4;
+    cursor: default;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.user-card-email:hover {
+    color: var(--text-h);
+}
+
+.user-card-email.is-empty {
+    color: #9c9ba1;
+    font-style: italic;
+}
+
+.user-card-email-icon {
+    flex-shrink: 0;
+    font-size: 14px;
+}
+
+.user-card-email-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
 .user-card-stats {
     display: flex;
-    padding: 4px 0 14px;
+    padding: 12px 0 14px;
     border-bottom: 1px solid var(--border);
 }
 

@@ -27,6 +27,11 @@ routes.push({
     name: 'ArticleCreation',
     component: () => import('../views/article/UserCreationView.vue')
 });
+routes.push({
+    path: '/user/profile',
+    name: 'UserProfile',
+    component: () => import('../views/user/UserProfile.vue')
+});
 
 const router = createRouter({
     history: createWebHistory(),

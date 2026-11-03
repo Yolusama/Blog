@@ -76,7 +76,7 @@
                             <el-icon><Search /></el-icon>
                         </template>
                     </el-input>
-                    <el-button type="primary" class="filter-button search-button" @click="searchArticles">搜索</el-button>
+                    <el-button type="primary"  @click="searchArticles">搜索</el-button>
                     <el-button class="filter-button reset-button" @click="resetFilters">重置</el-button>
                 </div>
             </div>
