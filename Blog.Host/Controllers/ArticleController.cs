@@ -3,6 +3,7 @@ using Blog.Application.Services.Interfaces.ArticleDomain;
 using Blog.Domain.ArticleDomain.DTO;
 using Blog.Domain.ArticleDomain.ValueObjects;
 using Blog.Shared;
+using Blog.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -52,4 +53,50 @@ public class ArticleController(IArticleService articleService,IArticleSourceServ
     {
         return await articleService.GetArticleRanking();
     }
+    
+    [HttpPatch("{articleId}")]
+    public async Task ViewArticle([FromRoute]string articleId)
+    {
+        var user = GetCurrentUser();
+        await articleService.ViewArticle(articleId, user.UserId);
+    }
+    
+    [HttpDelete("{articleId}")]
+    public async Task RemoveArticle([FromRoute]string articleId,[FromQuery]bool trueDelete = false)
+    {
+        await articleService.RemoveArticle(articleId,trueDelete);
+    }
+    
+    [HttpPut("{articleId}")]
+    public async Task LikeOrDislikeArticle([FromRoute]string articleId,[FromQuery]LikeOrDislikeEnum type)
+    {
+        var user = GetCurrentUser();
+        await articleService.LikeOrDislikeArticle(articleId, user.UserId, type);
+    }
+    
+    [HttpPost]
+    public async Task<long> WriteComment([FromBody] ArticleCommentDTO commentDto)
+    {
+        return await articleService.WriteComment(commentDto);
+    }
+    
+    [HttpPut("{commentId}")]
+    public async Task LikeOrDislikeComment([FromRoute] long commentId,[FromQuery] LikeOrDislikeEnum type)
+    {
+        await articleService.LikeOrDislikeComment(commentId, type);
+    }
+    
+    [HttpPut("{articleId}")]
+    public async Task CollectArticle([FromRoute]string articleId,[FromQuery]bool toCollect)
+    {
+        var user = GetCurrentUser();
+        await articleService.CollectArticle(articleId, user.UserId, toCollect);
+    }
+    
+    [HttpPost("{articleId}")]
+    public async Task PublishArticle([FromRoute]string articleId)
+    {
+        await articleService.PublishArticle(articleId);
+    }
+    
 }

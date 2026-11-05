@@ -23,7 +23,7 @@ public interface IRepository<T, TKey> where T : AggregateRoot<TKey>
     public Task AddAsync(T entity);
     public void Add(T entity);
     public long InsertIdentity(T entity);
-    public Task<long> InsertIdentityAsync(T entity);
+    public Task InsertIdentityAsync(T entity);
     public void Delete(T entity);
     public void Update(T entity);
     public void AddRange(params T[] entities);

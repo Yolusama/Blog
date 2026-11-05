@@ -4,6 +4,7 @@ using Blog.Application.Attributes;
 using Blog.Application.Services.Interfaces.ArticleDomain;
 using Blog.Domain.ArticleDomain.Entity;
 using Blog.Domain.ArticleDomain.DTO;
+using Blog.Domain.ArticleDomain.Services.Interfaces;
 using Blog.Domain.ArticleDomain.ValueObjects;
 using Blog.Domain.UserDomain.Entity;
 using Blog.Infrastructure.Expansions;
@@ -19,6 +20,7 @@ namespace Blog.Application.Services.ArticleDomain;
 [ServiceInjection]
 public class ArticleService(ILogger<ArticleService> logger,
     IConfiguration configuration,
+    IArticleSourceHandler articleSourceHandler,
     IRepository<Article,string> articleRepository,
     IRepository<ArticleSource,long> articleSourceRepository,
     IRepository<ArticleOptions,long> articleOptionsRepository,
@@ -35,6 +37,7 @@ public class ArticleService(ILogger<ArticleService> logger,
             article = new Article(model.IsDraft);
             article.AuthorId = model.UserId;
             article.Cover = Constants.DefaultArticleCover;
+            article.Content = string.Empty;
             model.ArticleId = article.Id;
             if (string.IsNullOrEmpty(model.Title))
             {
@@ -42,8 +45,8 @@ public class ArticleService(ILogger<ArticleService> logger,
                     .Where(a=>a.AuthorId == model.UserId)
                     .CountAsync();
                 if (draftCount >= Constants.UserMaxDraftCount)
-                    throw new ServiceException("用户最多拥有五份草稿！");
-                model.Title = Constants.Untitled + '-' + (draftCount + 1);
+                    throw new ServiceException("用户最多拥有五份草稿！",411);
+                model.Title = Constants.Untitled;
             }
             model.ShallowCopy(article);
             if (model.Sources.Count > 0)
@@ -70,12 +73,18 @@ public class ArticleService(ILogger<ArticleService> logger,
                 foreach (var item in toDelete)
                 {
                     if(item.IsHyperLink)continue;
-                    item.Delete(configuration[Constants.StaticFilesStorePath],article.AuthorId);
+                    articleSourceHandler.RemoveSource(item.FileName, article.AuthorId);
                     articleSourceRepository.Delete(item);
                 }
                 articleSourceRepository.UpdateRange(model.Sources.Where(s => s.SourceId != 0
                                                                              && !expectIds.Contains(s.SourceId))
                     .ShallowCopy<ArticleSourceModel, ArticleSource>().ToArray());
+            }
+
+            if (!string.IsNullOrEmpty(model.Content))
+            {
+                var fileName = RandomGenerator.SnowflakeId() + Constants.MarkDownFileExtension;
+                await articleSourceHandler.StoreArticleContent(fileName, article.AuthorId, model.Content);
             }
 
             var toInsert = model.Sources.Where(s => s.SourceId == 0)
@@ -174,6 +183,8 @@ public class ArticleService(ILogger<ArticleService> logger,
             .ToListAsync();
         var model = new ArticleSaveModel();
         model.ArticleId = article.Id;
+        if (!string.IsNullOrEmpty(article.Content))
+            model.ArticleTrueContent = await articleSourceHandler.ReadArticleContent(article.Content, article.AuthorId);
         article.ShallowCopy(model);
         model.Sources = sources.ShallowCopy<ArticleSource,ArticleSourceModel>().ToList();
         return model;
@@ -225,16 +236,22 @@ public class ArticleService(ILogger<ArticleService> logger,
        return ranking;
     }
 
-    public async Task RemoveArticle(string articleId)
+    public async Task RemoveArticle(string articleId,bool trueDelete = false)
     {
         var article =await articleRepository.All.FirstOrDefaultAsync(a => a.Id == articleId);
         if (article == null)
             throw new ServiceException("文章已不存在", 404);
-        if (article.IsDraft && article.SavedWhenInit)
-          await  RemoveArticleAllContent(article);
+        if ((article.IsDraft && article.SavedWhenInit) || trueDelete)
+        {
+            await RemoveArticleAllContent(article);
+            await articleSourceHandler.RemoveArticleFile(article.Content, article.AuthorId);
+        }
         else
+        {
             article.IsDeleted = true;
-        articleRepository.Update(article);
+            article.UpdateTime = DateTime.Now;
+            articleRepository.Update(article);
+        }
     }
 
     public async Task ViewArticle(string articleId, int userId)
@@ -266,17 +283,20 @@ public class ArticleService(ILogger<ArticleService> logger,
         var article =await articleRepository.All.FirstOrDefaultAsync(a => a.Id == articleId && !a.IsDeleted && !a.IsDraft);
         if(article == null)
             throw new ServiceException("文章不存在");
-        if(type == LikeOrDislikeEnum.Like)
+        switch (type)
         {
-            article.Like();
-            articleOptions.DisLiked = false;
-            articleOptions.Liked = true;
-        }
-        if(type == LikeOrDislikeEnum.Dislike)
-        {
-            article.Dislike();
-            articleOptions.Liked = false;
-            articleOptions.DisLiked = true;
+            case LikeOrDislikeEnum.Like:
+                article.Like();
+                articleOptions.DisLiked = false;
+                articleOptions.Liked = true;
+                break;
+            case LikeOrDislikeEnum.Dislike:
+                article.Dislike();
+                articleOptions.Liked = false;
+                articleOptions.DisLiked = true;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(type), type, null);
         }
 
         articleOptions.UpdateTime = DateTime.Now;
@@ -293,12 +313,13 @@ public class ArticleService(ILogger<ArticleService> logger,
         articleRepository.Update(article);
     }
 
-    public async Task WriteComment(ArticleCommentDTO commentDto)
+    public async Task<long> WriteComment(ArticleCommentDTO commentDto)
     {
         var comment = commentDto.ShallowCopy(new ArticleComment(commentDto.ArticleId));
         if(commentDto.RootId != Constants.EOF)
             comment.SetRootId(commentDto.RootId);
-        await articleCommentRepository.AddAsync(comment);
+        await articleCommentRepository.InsertIdentityAsync(comment);
+        return comment.Id;
     }
 
     public async Task LikeOrDislikeComment(long commentId, LikeOrDislikeEnum type)
@@ -386,7 +407,7 @@ public class ArticleService(ILogger<ArticleService> logger,
         if (sources.Length > 0)
         {
             foreach (var source in sources.AsEnumerable())
-               source.Delete(configuration[Constants.StaticFilesStorePath],article.AuthorId);
+               await articleSourceHandler.RemoveSource(source.FileName, article.AuthorId);
             articleSourceRepository.DeleteRange(sources);
         }
     }

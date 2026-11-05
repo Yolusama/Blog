@@ -39,16 +39,14 @@ public class Repository<T,TKey>(SysDbContext context) : IRepository<T, TKey> whe
         return value;
     }
 
-    public async Task<long> InsertIdentityAsync(T entity)
+    public async Task InsertIdentityAsync(T entity)
     {
         var idProperty = entity.GetType().GetProperty(nameof(entity.Id));
         var idType = idProperty.PropertyType;
         if (idType != typeof(long) && idType != typeof(int))
-            throw new InvalidOperationException("非自增Id接受类型");
+            throw new InvalidOperationException("自增Id接受只类型int,long(bigint/int64)");
         await DbSet.AddAsync(entity);
         await context.SaveChangesAsync();
-        var value = (long)idProperty.GetValue(entity);
-        return value;
     }
 
     public void Update(T entity)

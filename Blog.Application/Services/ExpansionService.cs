@@ -1,8 +1,10 @@
 ﻿using System.Reflection;
 using System.Text;
 using Blog.Application.Attributes;
+using Blog.Application.Services.ArticleDomain;
 using Blog.Application.Services.UserDomain;
 using Blog.Application.Services.UserDomain.Configuration;
+using Blog.Domain.ArticleDomain.Services.Interfaces;
 using Blog.Domain.Services.UserDomain.Interfaces;
 using Blog.Domain.UserDomain.Services.Interfaces;
 using Blog.Shared;
@@ -131,5 +133,10 @@ public static class ExpansionService
     public static void AddEmailSender(this IServiceCollection services)
     {
         services.AddScoped<IEmailSender, EmailSender>();
+    }
+    
+    public static void AddArticleSourceHandler(this IServiceCollection services)
+    {
+        services.AddSingleton<IArticleSourceHandler, ArticleSourceHandler>();
     }
 }

@@ -33,11 +33,4 @@ public class ArticleSource : AggregateRoot<long>
     {
         ArticleId = articleId;
     }
-
-    public void Delete(string root,int userId)
-    {
-        var filePath = Path.Combine(root, userId.ToString(),
-            FileName);
-        FileUtil.RemoveFile(filePath);
-    }
 }

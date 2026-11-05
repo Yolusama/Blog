@@ -15,11 +15,11 @@ public interface IArticleService
     public Task<BasePageQueryResult<UserArticleVO>> GetRecentArticles(ArticleQuery query);
     public Task<ArticleSaveModel> GetArticleContent(string articleId);
     public Task<ArticleRankingVO> GetArticleRanking();
-    public Task RemoveArticle(string articleId);
+    public Task RemoveArticle(string articleId,bool trueDelete = false);
     public Task ViewArticle(string articleId,int userId);
     public Task LikeOrDislikeArticle(string articleId,int userId,LikeOrDislikeEnum type);
     public Task PublishArticle(string articleId);
-    public Task WriteComment(ArticleCommentDTO commentDto);
+    public Task<long> WriteComment(ArticleCommentDTO commentDto);
     public Task LikeOrDislikeComment(long commentId,LikeOrDislikeEnum type);
     public Task CollectArticle(string articleId,int userId,bool toCollect);
 }

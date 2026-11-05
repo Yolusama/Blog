@@ -65,7 +65,6 @@ public class ArticleComment : AggregateRoot<long>
           LikeCount--;
     }
     
-    
     public ArticleComment(){}
     
     public ArticleComment(string articleId)
