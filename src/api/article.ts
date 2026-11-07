@@ -6,6 +6,7 @@ export interface ArticleSaveModel {
   title?: string;
   content?: string
   abstract?: string;
+  articleTrueContent?:string;
   userId: number;
   isDraft: boolean;
   sources: ArticleSourceModel[];

@@ -46,7 +46,7 @@ function createEditor(value: string) {
         minHeight: props.minHeight,
         cache: { enable: false },
         counter: { enable: true, type: 'markdown' },
-        toolbarConfig: { pin: true },
+        toolbarConfig: { pin: false },
         outline: { enable: false, position: 'left' },
         preview: {
             hljs: { enable: true, style: 'github', lineNumber: true },
@@ -125,13 +125,38 @@ defineExpose({
 }
 
 .vditor-host :deep(.vditor) {
+    display: flex;
+    flex-direction: column;
     border: 0;
     background: transparent;
 }
 
+/* 工具栏置于编辑区顶部 */
 .vditor-host :deep(.vditor-toolbar) {
-    padding-left: 0;
+    order: -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    margin-bottom: 12px;
+    padding: 0 0 8px;
+    border-top: 0;
+    border-bottom: 1px solid #f2f3f5;
     background: transparent;
+}
+
+.vditor-host :deep(.vditor-toolbar__item),
+.vditor-host :deep(.vditor-toolbar__divider) {
+    float: none;
+}
+
+.vditor-host :deep(.vditor-toolbar__br) {
+    display: none;
+}
+
+.vditor-host :deep(.vditor-counter) {
+    float: none;
+    margin: 0 0 0 auto;
 }
 
 .vditor-host :deep(.vditor-toolbar__item button) {

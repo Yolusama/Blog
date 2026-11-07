@@ -11,21 +11,10 @@
                 </svg>
             </el-button>
 
-            <el-dropdown trigger="click" @command="handlePublishCommand">
-                <button type="button" class="publish-entry">
-                    <span>发布文章</span>
-                    <el-icon class="publish-caret" :size="12">
-                        <CaretBottom />
-                    </el-icon>
-                </button>
-                <template #dropdown>
-                    <el-dropdown-menu>
-                        <el-dropdown-item command="publish">发布文章</el-dropdown-item>
-                        <el-dropdown-item command="draft">保存草稿</el-dropdown-item>
-                        <el-dropdown-item command="preview">预览</el-dropdown-item>
-                    </el-dropdown-menu>
-                </template>
-            </el-dropdown>
+            <button type="button" class="publish-entry">
+                <span>发布文章</span>
+
+            </button>
         </header>
 
         <!-- 自定义工具栏先注释掉，改用 Vditor 自带工具栏
@@ -69,47 +58,47 @@
                                         </el-dropdown-item>
                                     </el-dropdown-menu>
                                 </template>
-                            </el-dropdown>
+</el-dropdown>
 
-                            <button v-else type="button" class="tool-button" :aria-label="item.label"
-                                @click="handleTool(item.key)">
-                                <span class="tool-icon-wrap">
-                                    <span v-if="item.key === 'list'" class="glyph-list">
-                                        <i></i><i></i><i></i>
-                                    </span>
-                                    <span v-else-if="item.key === 'align'" class="glyph-align">
-                                        <i></i><i></i><i></i><i></i>
-                                    </span>
-                                    <span v-else-if="item.key === 'resource'" class="glyph-resource">
-                                        <el-icon :size="20">
-                                            <Picture />
-                                        </el-icon>
-                                        <span class="glyph-plus">+</span>
-                                    </span>
-                                    <el-icon v-else-if="item.icon" :size="20">
-                                        <component :is="item.icon" />
-                                    </el-icon>
-                                    <span v-else class="tool-glyph" :class="`glyph-${item.key}`">{{ item.glyph
-                                    }}</span>
-                                </span>
-                                <span class="tool-label">{{ item.label }}</span>
-                            </button>
-                        </template>
-                    </div>
+<button v-else type="button" class="tool-button" :aria-label="item.label" @click="handleTool(item.key)">
+    <span class="tool-icon-wrap">
+        <span v-if="item.key === 'list'" class="glyph-list">
+            <i></i><i></i><i></i>
+        </span>
+        <span v-else-if="item.key === 'align'" class="glyph-align">
+            <i></i><i></i><i></i><i></i>
+        </span>
+        <span v-else-if="item.key === 'resource'" class="glyph-resource">
+            <el-icon :size="20">
+                <Picture />
+            </el-icon>
+            <span class="glyph-plus">+</span>
+        </span>
+        <el-icon v-else-if="item.icon" :size="20">
+            <component :is="item.icon" />
+        </el-icon>
+        <span v-else class="tool-glyph" :class="`glyph-${item.key}`">{{ item.glyph
+            }}</span>
+    </span>
+    <span class="tool-label">{{ item.label }}</span>
+</button>
+</template>
+</div>
 
-                    <span v-if="groupIndex < toolGroups.length - 1" class="tool-divider" aria-hidden="true"></span>
-                </template>
-            </div>
-        </nav>
-        -->
+<span v-if="groupIndex < toolGroups.length - 1" class="tool-divider" aria-hidden="true"></span>
+</template>
+</div>
+</nav>
+-->
 
         <main class="editor-main">
             <div class="editor-paper">
-                <el-input v-model="title" class="article-title" maxlength="100" placeholder="请输入文章标题（2～100个字）" />
+                <el-input v-model="articleContent.title" class="article-title" maxlength="100"
+                    placeholder="请输入文章标题（2～100个字）" />
 
                 <div class="editor-body">
-                    <VditorEditor v-model="articleContent.content" :mode="viewMode" :onUpload="uploadSource"
-                        placeholder="使用 Markdown 写作，支持标题、列表、表格、代码块、图片、链接等" />
+                    <VditorEditor v-model="articleContent.articleTrueContent" :mode="viewMode" :onUpload="uploadSource"
+                        placeholder="创作" />
                 </div>
 
                 <div class="editor-footer">
@@ -123,11 +112,35 @@
                         <button type="button" class="width-button" @click="isWide = !isWide">
                             {{ isWide ? '标准宽度' : '宽屏模式' }}
                         </button>
+                        <el-button-group>
+                            <el-button type="primary" @click="saveArticle(articleContent,false)">
+                                保存
+                            </el-button>
+                            <el-button type="info" @click="openPreview">
+                                预览
+                            </el-button>
+                            <el-button color="#626aef" @click="publishArticle(articleContent)">
+                                发布
+                            </el-button>
+                        </el-button-group>
                     </div>
-                    <span class="editor-hint">Markdown 将转换为 HTML 展示，支持标题、列表、表格、代码块、公式、图表与链接</span>
                 </div>
             </div>
         </main>
+
+        <el-dialog v-model="previewVisible" class="preview-dialog" title="文章预览" width="min(900px, 92vw)" top="6vh"
+            append-to-body @opened="renderPreview">
+            <div class="preview-scroll">
+                <h1 v-if="articleContent.title" class="preview-title">{{ articleContent.title }}</h1>
+                <div ref="previewRef" class="preview-body"></div>
+            </div>
+            <template #footer>
+                <div class="preview-actions">
+                    <el-button @click="previewVisible = false">取消</el-button>
+                    <el-button type="primary" @click="saveAndClosePreview">保存</el-button>
+                </div>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
@@ -135,6 +148,8 @@
 import { onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import VditorEditor from '../../components/VditorEditor.vue';
+import Vditor from 'vditor';
+import 'vditor/dist/index.css';
 import { UploadFile } from '../../api/artcileSource.ts';
 import { ElMessage, ElNotification } from 'element-plus';
 import { type ArticleSaveModel, GetArticleContent, SaveArticle } from '../../api/article.ts';
@@ -161,9 +176,11 @@ type ViewMode = 'ir' | 'wysiwyg' | 'sv';
 
 const route = useRoute();
 const router = useRouter();
-const title = ref('');
 const isWide = ref(false);
 const viewMode = ref<ViewMode>('wysiwyg');
+const previewVisible = ref(false);
+const previewRef = ref<HTMLDivElement | null>(null);
+const vditorCdn = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/vditor`;
 const articleId = ref('');
 const articleContent = reactive<ArticleSaveModel>({
     userId: 0,
@@ -178,7 +195,8 @@ const viewModes: { label: string; value: ViewMode }[] = [
 ];
 onMounted(() => {
     const user = stateStroge.get<User>("User");
-    const articleIdVal = route.params.articleId as string;
+    const articleIdVal = route.params.articleId as string
+        || sessionStorage.getItem("CurrentArticleId") as string;
     const timeout = setTimeout(() => {
         isWide.value = true;
         clearTimeout(timeout);
@@ -194,26 +212,72 @@ onMounted(() => {
 })
 
 function saveArticle(model: ArticleSaveModel, init: boolean) {
+    if (!init) {
+        if (!articleContent.articleTrueContent?.trim().length) {
+            ElMessage.warning("请输入内容");
+            return;
+        }
+    }
     SaveArticle(model)
         .then(res => {
             if (res.success) {
                 const successMsg = init ? '已保存为\"未命名\"' : "已保存";
                 ElMessage.success(successMsg);
-                if (!articleId.value.length)
-                    articleId.value = res.data;
+                if (!articleId.value.length) {
+                    articleId.value = res.data.articleId;
+                    sessionStorage.setItem("CurrentArticleId", articleId.value);
+                }
+                if(!articleContent?.content)
+                    articleContent.content = articleContent.content;
             }
-            else
+            else {
+                if (res.code == 411) {
+                    const timeout = setTimeout(() => {
+                        ElMessage.warning("文章草稿已满五份，请先删除不必要的草稿");
+                        clearTimeout(timeout);
+                    }, 2000);
+                }
                 ElMessage.error(res.message);
+            }
         })
         .catch(error => ElNotification.error(error));
+}
+
+function openPreview() {
+    if (!articleContent.articleTrueContent?.trim().length) {
+        ElMessage.warning("请输入内容");
+        return;
+    }
+    previewVisible.value = true;
+}
+
+async function renderPreview() {
+    if (!previewRef.value) {
+        return;
+    }
+    await Vditor.preview(previewRef.value, articleContent.articleTrueContent ?? '', {
+        mode: 'light',
+        cdn: vditorCdn,
+        lang: 'zh_CN',
+        hljs: { enable: true, style: 'github', lineNumber: true },
+        math: { engine: 'KaTeX' },
+        markdown: { toc: true }
+    });
+}
+
+function saveAndClosePreview() {
+    saveArticle(articleContent, false);
+    previewVisible.value = false;
 }
 
 function getArticleContent() {
     const loadingInstance = loading({ message: "内容加载中...", duration: 0 });
     GetArticleContent(articleId.value)
         .then(res => {
-            if (res.success) 
+            if (res.success) {
                 Object.assign(articleContent, res.data);
+                articleContent.articleTrueContent = res.data.articleTrueContent || '';
+            }
             else
                 ElMessage.error(res.message);
         })
@@ -324,14 +388,13 @@ function goBack() {
     router.push('/index');
 }
 
-function handlePublishCommand(command: string) {
-    if (command === 'preview') {
-        viewMode.value = 'sv';
+function publishArticle(model: ArticleSaveModel) {
+    if (!model.articleTrueContent?.trim().length) {
+        ElMessage.warning("请输入内容");
         return;
     }
-    console.log(`[article-editor] publish command: ${command}`);
+    model.isDraft = false;
 }
-
 /* 自定义工具栏的编辑命令先注释掉
 function ensureSourceVisible() {
     if (viewMode.value === 'preview') {
@@ -859,9 +922,8 @@ function handleTool(tool: string) {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-top: 20px;
-    padding-top: 14px;
-    border-top: 1px solid #f2f3f5;
+    margin-top: 0;
+    padding: 10px 0 4px;
 }
 
 .view-switch {
@@ -916,6 +978,41 @@ function handleTool(tool: string) {
     margin: 0;
     font-size: 12px;
     color: #8f959e;
+}
+
+/* 预览对话框 */
+.preview-scroll {
+    max-height: 62vh;
+    overflow-y: auto;
+    padding: 0 4px;
+}
+
+.preview-title {
+    margin: 0 0 16px;
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: #1f2329;
+}
+
+.preview-body {
+    font-size: 15px;
+    line-height: 1.9;
+    color: #333;
+}
+
+.preview-body :deep(img) {
+    max-width: 100%;
+}
+
+.preview-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.preview-actions :deep(.el-button + .el-button) {
+    margin-left: 0;
 }
 
 @media (max-width: 768px) {
