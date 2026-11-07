@@ -35,7 +35,7 @@ public class ArticleController(IArticleService articleService,IArticleSourceServ
     
     [HttpPut]
     [Authorize]
-    public async Task<string> SaveArticle([FromBody] ArticleSaveModel model)
+    public async Task<ArticleSaveVO> SaveArticle([FromBody] ArticleSaveModel model)
     {
         return await articleService.SaveArticle(model);
     }

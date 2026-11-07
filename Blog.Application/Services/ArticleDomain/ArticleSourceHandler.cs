@@ -10,20 +10,20 @@ public class ArticleSourceHandler(IConfiguration configuration) : IArticleSource
 {
     private const string ContentBase = "Creations";
     private const string Sources = nameof(Sources);
-    public async Task StoreArticleContent(string fileName,int userId, string content)
+    public async Task<string> StoreArticleContent(string fileName,int userId, string content)
     {
-        var path = Path.Combine(configuration[Constants.StaticFilesStorePath],userId.ToString(),ContentBase, fileName);
+        var path = Path.Combine(configuration[Constants.StaticFilesStorePath],ContentBase, userId.ToString(),fileName);
         var fileInfo = new FileInfo(path);
-        if(!fileInfo.Exists)
-            fileInfo.Create().Close();
+        fileInfo.CreateIfNotExists();
         using var stream = fileInfo.OpenWrite();
         var bytes = Encoding.UTF8.GetBytes(content);
         await stream.WriteAsync(bytes);
+        return fileInfo.Name;
     }
 
     public async Task<string> ReadArticleContent(string fileName, int userId)
     {
-        var path = Path.Combine(configuration[Constants.StaticFilesStorePath],userId.ToString(),ContentBase, fileName);
+        var path = Path.Combine(configuration[Constants.StaticFilesStorePath],ContentBase,userId.ToString(), fileName);
         var fileInfo = new FileInfo(path);
         if(!fileInfo.Exists)
             throw new FileNotFoundException("File not found");
@@ -37,7 +37,7 @@ public class ArticleSourceHandler(IConfiguration configuration) : IArticleSource
     {
         await Task.Run(() =>
         {
-            var path = Path.Combine(configuration[Constants.StaticFilesStorePath], userId.ToString(), ContentBase,
+            var path = Path.Combine(configuration[Constants.StaticFilesStorePath], ContentBase, userId.ToString(),
                 fileName);
             var fileInfo = new FileInfo(path);
             if (fileInfo.Exists)
@@ -49,7 +49,7 @@ public class ArticleSourceHandler(IConfiguration configuration) : IArticleSource
     {
         await Task.Run(() =>
         {
-            var path = Path.Combine(configuration[Constants.StaticFilesStorePath], userId.ToString(),Sources,
+            var path = Path.Combine(configuration[Constants.StaticFilesStorePath], Sources,userId.ToString(),
                 fileName);
             var fileInfo = new FileInfo(path);
             if (fileInfo.Exists)
@@ -65,8 +65,7 @@ public class ArticleSourceHandler(IConfiguration configuration) : IArticleSource
             var extension = Path.GetExtension(file.FileName);
             var fileName = guid + extension;
             var fileInfo = new FileInfo(Path.Combine(configuration[Constants.StaticFilesStorePath],Sources,userId.ToString(),fileName));
-            if(!fileInfo.Exists)
-                fileInfo.Create().Close();
+            fileInfo.CreateIfNotExists();
             using var stream = fileInfo.OpenWrite();
             await file.CopyToAsync(stream);
             return fileInfo;

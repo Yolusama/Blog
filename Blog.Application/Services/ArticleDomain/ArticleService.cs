@@ -28,7 +28,7 @@ public class ArticleService(ILogger<ArticleService> logger,
     IRepository<ArticleCommentOptions,long> articleCommentOptionsRepository,
     IRepository<User,int> userRepository) : IArticleService
 {
-    public async Task<string> SaveArticle(ArticleSaveModel model)
+    public async Task<ArticleSaveVO> SaveArticle(ArticleSaveModel model)
     {
         if(!model.IsDraft) throw new ServiceException("无法再保存已发布的文章");
         var article = await articleRepository.NoTracking.FirstOrDefaultAsync(a => a.Id == model.ArticleId);
@@ -73,7 +73,7 @@ public class ArticleService(ILogger<ArticleService> logger,
                 foreach (var item in toDelete)
                 {
                     if(item.IsHyperLink)continue;
-                    articleSourceHandler.RemoveSource(item.FileName, article.AuthorId);
+                    await articleSourceHandler.RemoveSource(item.FileName, article.AuthorId);
                     articleSourceRepository.Delete(item);
                 }
                 articleSourceRepository.UpdateRange(model.Sources.Where(s => s.SourceId != 0
@@ -81,10 +81,10 @@ public class ArticleService(ILogger<ArticleService> logger,
                     .ShallowCopy<ArticleSourceModel, ArticleSource>().ToArray());
             }
 
-            if (!string.IsNullOrEmpty(model.Content))
+            if (!string.IsNullOrEmpty(model.ArticleTrueContent))
             {
                 var fileName = RandomGenerator.SnowflakeId() + Constants.MarkDownFileExtension;
-                await articleSourceHandler.StoreArticleContent(fileName, article.AuthorId, model.Content);
+                article.Content = await articleSourceHandler.StoreArticleContent(fileName, article.AuthorId, model.ArticleTrueContent);
             }
 
             var toInsert = model.Sources.Where(s => s.SourceId == 0)
@@ -93,7 +93,7 @@ public class ArticleService(ILogger<ArticleService> logger,
               await articleSourceRepository.AddRangeAsync(toInsert);
             articleRepository.Update(article);
         }
-        return article.Id;
+        return new ArticleSaveVO { ArticleId = article.Id, Content = article.Content };
     }
 
     public async Task<BasePageQueryResult<UserArticleVO>> GetUserArticles(UserArticleQuery query)
@@ -185,7 +185,10 @@ public class ArticleService(ILogger<ArticleService> logger,
         model.ArticleId = article.Id;
         if (!string.IsNullOrEmpty(article.Content))
             model.ArticleTrueContent = await articleSourceHandler.ReadArticleContent(article.Content, article.AuthorId);
-        article.ShallowCopy(model);
+        article.ShallowCopy(model, (src, dest) =>
+        {
+            dest.UserId = src.AuthorId;
+        });
         model.Sources = sources.ShallowCopy<ArticleSource,ArticleSourceModel>().ToList();
         return model;
     }

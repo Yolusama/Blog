@@ -10,7 +10,7 @@ namespace Blog.Application.Services.Interfaces.ArticleDomain;
 [ServiceInjection]
 public interface IArticleService
 {
-    public Task<string> SaveArticle(ArticleSaveModel article);
+    public Task<ArticleSaveVO> SaveArticle(ArticleSaveModel article);
     public Task<BasePageQueryResult<UserArticleVO>> GetUserArticles(UserArticleQuery query);
     public Task<BasePageQueryResult<UserArticleVO>> GetRecentArticles(ArticleQuery query);
     public Task<ArticleSaveModel> GetArticleContent(string articleId);

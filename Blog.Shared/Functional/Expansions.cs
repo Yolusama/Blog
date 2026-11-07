@@ -126,7 +126,14 @@ public static class Expansions
              Total = total
          };
     }
-    
+
+    public static void CreateIfNotExists(this FileInfo file)
+    {
+        if (file.Directory != null && !file.Directory.Exists)
+            file.Directory.Create();
+        if (!file.Exists)
+            file.Create().Close();
+    }
     private static bool IsBaseType(Type type)
     {
         return type.IsPrimitive || type.IsEnum 

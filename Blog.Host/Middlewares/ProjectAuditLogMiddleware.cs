@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Net;
 using System.Text.Json;
 using Blog.Infrastructure;
 using Blog.Shared;
@@ -23,8 +24,8 @@ public class ProjectAuditLogMiddleware(
 {
     private const string ApiPathPrefix = "/api";
     private const string SwaggerPathPrefix = "/swagger";
-    
-    
+
+
     private static readonly JsonSerializerOptions ParameterJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -49,12 +50,12 @@ public class ProjectAuditLogMiddleware(
             Route = httpContext.Request.Path.Value ?? string.Empty,
             RemoteIpAddr = GetIpAddress(httpContext) ?? string.Empty,
             ActionDesc = action.DisplayName,
-            ParameterJson = await ReadParameterJsonAsync(httpContext,action) ?? string.Empty,
+            ParameterJson = await ReadParameterJsonAsync(httpContext, action) ?? string.Empty,
             ClientInfo = userAgent.ToString()
         };
 
         var stopwatch = Stopwatch.StartNew();
-        string? exception =null;
+        string? exception = null;
 
         try
         {
@@ -66,7 +67,7 @@ public class ProjectAuditLogMiddleware(
             logger.LogError("{e}", e);
             httpContext.Response.ContentType = "application/json";
             var failResult = ResponseResult.Fail(e.Message);
-            if(e is ServiceException serviceException)
+            if (e is ServiceException serviceException)
                 failResult.Code = serviceException.Code;
             await httpContext.Response
                 .WriteAsync(failResult.ToJson(Constants.SmallCamelcase));
@@ -92,6 +93,7 @@ public class ProjectAuditLogMiddleware(
             action = null;
             return false;
         }
+
         action = context.GetEndpoint()?.Metadata.GetMetadata<ControllerActionDescriptor>();
         if (action is null)
             return false;
@@ -122,18 +124,19 @@ public class ProjectAuditLogMiddleware(
     /// <summary>
     /// 组合路由参数、Query、请求体并序列化
     /// </summary>
-    private static async Task<string?> ReadParameterJsonAsync(HttpContext context,ActionDescriptor? actionDescriptor)
+    private static async Task<string?> ReadParameterJsonAsync(HttpContext context, ActionDescriptor? actionDescriptor)
     {
-        var parameters = new Dictionary<string,object?>();
-        foreach (var key in context.Request.RouteValues.Keys.Where(k=>k!="action" && k!="controller"))
+        var parameters = new Dictionary<string, object?>();
+        foreach (var key in context.Request.RouteValues.Keys.Where(k => k != "action" && k != "controller"))
             parameters.Add(key, context.Request.RouteValues[key]);
         foreach (var key in context.Request.Query.Keys)
         {
             var value = context.Request.Query[key];
             parameters.Add(key, value.Count == 1 ? value.First() : value);
         }
-        if(context.Request.Method != HttpMethods.Get || context.Request.Method != HttpMethods.Head
-           || context.Request.Method != HttpMethods.Delete)
+
+        if (context.Request.Method != HttpMethods.Get || context.Request.Method != HttpMethods.Head
+                                                      || context.Request.Method != HttpMethods.Delete)
         {
             if (context.Request.HasFormContentType)
             {
@@ -143,7 +146,7 @@ public class ProjectAuditLogMiddleware(
                 foreach (var fileGroup in form.Files.GroupBy(f => f.Name))
                 {
                     var key = fileGroup.Key;
-                    var files = fileGroup.Select(f=>new
+                    var files = fileGroup.Select(f => new
                     {
                         f.FileName,
                         f.Length,
@@ -151,11 +154,10 @@ public class ProjectAuditLogMiddleware(
                         f.ContentDisposition,
                         f.Headers
                     }).ToList();
-                    if(files.Count == 1)
-                        parameters.Add(key,files.First());
+                    if (files.Count == 1)
+                        parameters.Add(key, files.First());
                     else
-                        parameters.Add(key,files);
-                    
+                        parameters.Add(key, files);
                 }
             }
             else
@@ -169,7 +171,7 @@ public class ProjectAuditLogMiddleware(
                     if (bodyParameter != null)
                     {
                         var obj = await JsonSerializer
-                            .DeserializeAsync(context.Request.Body, bodyParameter.ParameterType, 
+                            .DeserializeAsync(context.Request.Body, bodyParameter.ParameterType,
                                 ParameterJsonOptions);
                         parameters.Add(bodyParameter.Name, obj);
                     }
@@ -178,8 +180,8 @@ public class ProjectAuditLogMiddleware(
 
             context.Request.Body.Position = 0;
         }
-        
-        
+
+
         return parameters.Count == 0
             ? "{}"
             : JsonSerializer.Serialize(parameters, ParameterJsonOptions);
@@ -189,14 +191,32 @@ public class ProjectAuditLogMiddleware(
     {
         var forwarded = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(forwarded))
-            return forwarded.Split(',')[0].Trim();
+        {
+            var forwardedIp = forwarded.Split(',')[0].Trim();
+            return IPAddress.TryParse(forwardedIp, out var forwardedAddress)
+                ? NormalizeIpAddress(forwardedAddress) ?? forwardedIp
+                : forwardedIp;
+        }
 
-        var ip = context.Connection.RemoteIpAddress;
+        return NormalizeIpAddress(context.Connection.RemoteIpAddress);
+    }
+
+    /// <summary>
+    /// 归一化 IP 地址：
+    /// IPv4 映射的 IPv6 地址转回 IPv4；
+    /// 回环地址（::1、127.0.0.1 等）统一记录为 127.0.0.1。
+    /// </summary>
+    private static string? NormalizeIpAddress(IPAddress? ip)
+    {
         if (ip is null)
             return null;
 
-        return ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4().ToString() : ip.ToString();
+        if (ip.IsIPv4MappedToIPv6)
+            ip = ip.MapToIPv4();
+
+        return IPAddress.IsLoopback(ip) ? "127.0.0.1" : ip.ToString();
     }
+
 
     private async Task WriteLogAsync(ProjectAuditLog log)
     {
