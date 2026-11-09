@@ -1,41 +1,38 @@
 <template>
     <div class="user-creation">
         <header class="profile-card">
-            <a class="avatar" :href="profile.homeUrl" aria-label="个人主页" @click.prevent>
-                <img v-if="profile.avatar" class="avatar-image" :src="profile.avatar" :alt="`${profile.nickname}的头像`" />
+            <a class="avatar" aria-label="个人主页" @click.prevent>
+                <img v-if="profile.avatar" class="avatar-image" :src="getSource(profile.avatar,'Images')"
+                    :alt="`${profile.nickname}的头像`" />
                 <span v-else class="avatar-fallback">{{ profile.nickname.slice(0, 1) }}</span>
             </a>
 
             <div class="profile-detail">
                 <div class="name-row">
                     <h1 class="nickname">{{ profile.nickname }}</h1>
-                    <span class="code-age">码龄{{ profile.codeAge }}年</span>
-                    <span class="level-badge" :title="`等级 Lv.${profile.level}`">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path
-                                d="M12 2.5l7.5 3.2v6.1c0 4.6-3.1 8.3-7.5 10.7-4.4-2.4-7.5-6.1-7.5-10.7V5.7L12 2.5z" />
-                        </svg>
-                        <span class="level-text">{{ profile.level }}</span>
-                    </span>
                 </div>
 
                 <ul class="stats">
                     <li class="stat">
-                        <span class="stat-value">{{ profile.original }}</span>
+                        <span class="stat-value">{{ profile.creationCount == 0 ? '暂无'
+                            : profile.creationCount }}</span>
                         <span class="stat-label">原创</span>
                     </li>
                     <li class="stat">
-                        <span class="stat-value">{{ profile.fans }}</span>
+                        <span class="stat-value">{{ profile.fansCount }}</span>
                         <span class="stat-label">粉丝</span>
                     </li>
                     <li class="stat">
-                        <span class="stat-value">{{ profile.following }}</span>
+                        <span class="stat-value">{{ profile.followingCount }}</span>
                         <span class="stat-label">关注</span>
                     </li>
                 </ul>
 
                 <div class="meta">
-                    <span class="meta-item">加入{{ profile.platformName }}时间：{{ profile.joinedAt }}</span>
+                    <span class="meta-item">加入Blog时间：{{profile.joinTime }}</span>
+                </div>
+                 <div class="meta">
+                    <span class="meta-item">Blog龄：{{ GetAgeWithMonth(new Date(profile.joinTime)) }}</span>
                 </div>
             </div>
 
@@ -65,18 +62,20 @@
                         :value="option.value" />
                 </el-select>
 
-                <el-date-picker v-model="dateRange" class="filter-date" type="daterange"
-                    range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期"
-                    value-format="YYYY-MM-DD" unlink-panels @change="handleDateChange" />
+                <el-date-picker v-model="dateRange" class="filter-date" type="daterange" range-separator="至"
+                    start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" unlink-panels
+                    @change="handleDateChange" />
 
                 <div class="filter-search">
                     <el-input v-model="query.search" class="search-input" placeholder="请输入标题或关键字" clearable
                         @keyup.enter="searchArticles">
                         <template #prefix>
-                            <el-icon><Search /></el-icon>
+                            <el-icon>
+                                <Search />
+                            </el-icon>
                         </template>
                     </el-input>
-                    <el-button type="primary"  @click="searchArticles">搜索</el-button>
+                    <el-button type="primary" @click="searchArticles">搜索</el-button>
                     <el-button class="filter-button reset-button" @click="resetFilters">重置</el-button>
                 </div>
             </div>
@@ -87,13 +86,15 @@
                     @delete="handleDeleteArticle" @article-click="openArticle" />
             </div>
         </section>
+
     </div>
 </template>
 
 <script lang="ts" setup>
+import { GetAgeWithMonth } from '../../modules/Common.ts';
 import { Document, EditPen, Search, Setting } from '@element-plus/icons-vue';
 import { ElMessage, ElNotification } from 'element-plus';
-import {  onMounted, reactive, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import {
     ArticleStatus,
@@ -102,27 +103,27 @@ import {
     type ArticleListItem,
     type UserArticleQuery,
 } from '../../api/article.ts';
-import type { Pagination } from '../../modules/Request.ts';
+import { getSource, type Pagination } from '../../modules/Request.ts';
 import stateStorage from '../../modules/StateStorage.ts';
-import type { User } from '../../api/user.ts';
+import { GetUserprofile, type User, type UserProfile } from '../../api/user.ts';
+import { Route } from '../../modules/Route.ts';
 
 type ArticleTab = 'article' | 'draft' | 'recycle';
 
 const router = useRouter();
 const dateRange = ref<string[] | null>(null);
+const user = ref<User>();
 
-const profile = reactive({
-    nickname: '夜736',
+const profile = reactive<UserProfile>({
+    userId: 0,
+    nickname: '',
+    email: '',
     avatar: '',
-    homeUrl: '/index',
-    codeAge: 5,
-    level: 5,
-    original: '暂无',
-    fans: 0,
-    following: 6,
-    ipLocation: '广东省',
-    platformName: 'CSDN',
-    joinedAt: '2021-12-04',
+    gender: 0,
+    joinTime: new Date(),
+    creationCount: 0,
+    followingCount: 0,
+    fansCount: 0
 });
 
 const actions = [
@@ -163,12 +164,18 @@ const articles = ref<Pagination<ArticleListItem>>({
 
 
 onMounted(() => {
-    const user = stateStorage.get<User>('User');
-    if (user) query.value.userId = user.userId;
+    const storedUser = stateStorage.get<User>('User');
+    if (storedUser) query.value.userId = storedUser.userId;
+    user.value = storedUser;
     loadArticles();
+    loadUserProfile();
 });
 
 function handleAction(key: (typeof actions)[number]['key']) {
+    if (key === 'edit') {
+        Route.open('/user/profile');
+        return;
+    }
     ElMessage.info(`点击了「${actions.find((item) => item.key === key)?.label}」`);
 }
 
@@ -220,6 +227,22 @@ function loadArticles() {
         .finally(() => {
             loading.value = false;
         });
+}
+
+function loadUserProfile() {
+    loading.value = true;
+    const userId = user.value?.userId || 0;
+    GetUserprofile(userId)
+        .then(res => {
+            if (res.success) {
+                Object.assign(profile, res.data);
+                return;
+            }
+            ElMessage.error(res.message);
+        })
+        .catch(error => ElMessage.error(error))
+        .finally(() => loading.value = false);
+
 }
 
 function openArticle(article: ArticleListItem) {
