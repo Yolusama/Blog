@@ -9,7 +9,7 @@ namespace Blog.Application.Services.ArticleDomain;
 public class ArticleSourceHandler(IConfiguration configuration) : IArticleSourceHandler
 {
     private const string ContentBase = "Creations";
-    private const string Sources = nameof(Sources);
+    private const string Source = nameof(Source);
     public async Task<string> StoreArticleContent(string fileName,int userId, string content)
     {
         var path = Path.Combine(configuration[Constants.StaticFilesStorePath],ContentBase, userId.ToString(),fileName);
@@ -49,7 +49,7 @@ public class ArticleSourceHandler(IConfiguration configuration) : IArticleSource
     {
         await Task.Run(() =>
         {
-            var path = Path.Combine(configuration[Constants.StaticFilesStorePath], Sources,userId.ToString(),
+            var path = Path.Combine(configuration[Constants.StaticFilesStorePath], Source,userId.ToString(),
                 fileName);
             var fileInfo = new FileInfo(path);
             if (fileInfo.Exists)
@@ -64,7 +64,7 @@ public class ArticleSourceHandler(IConfiguration configuration) : IArticleSource
             var guid = RandomGenerator.Guid();
             var extension = Path.GetExtension(file.FileName);
             var fileName = guid + extension;
-            var fileInfo = new FileInfo(Path.Combine(configuration[Constants.StaticFilesStorePath],Sources,userId.ToString(),fileName));
+            var fileInfo = new FileInfo(Path.Combine(configuration[Constants.StaticFilesStorePath],Source,userId.ToString(),fileName));
             fileInfo.CreateIfNotExists();
             using var stream = fileInfo.OpenWrite();
             await file.CopyToAsync(stream);

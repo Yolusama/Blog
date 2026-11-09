@@ -2,12 +2,13 @@
 using Blog.Application.Services.UserDomain.Interfaces;
 using Blog.Domain.UserDomain.DTO;
 using Blog.Domain.UserDomain.ValueObjects;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Blog.Controllers;
 
 [ApplicationService]
-public class UserController(IUserLoginService userLoginService) : ControllerBase
+public class UserController(IUserLoginService userLoginService,IUserService userService) : ControllerBase
 {
     [HttpPost]
     [UnitOfWork]
@@ -45,5 +46,21 @@ public class UserController(IUserLoginService userLoginService) : ControllerBase
     public async Task Logout([FromRoute] int userId)
     {
         await userLoginService.Logout(userId);
+    }
+
+    [HttpGet("{userId}")]
+    [UnitOfWork]
+    [Authorize]
+    public async Task<UserProfile> GetUserProfile([FromRoute] int userId)
+    {
+        return await userService.GetUserProfile(userId);
+    }
+
+    [HttpPost]
+    [UnitOfWork]
+    [Authorize]
+    public async Task<string> ChangeAvatar([FromForm] UserProfileDTO profileDto)
+    {
+        return await userService.ChangeAvatar(profileDto.AvatarFile,profileDto.Avatar,profileDto.UserId);
     }
 }

@@ -384,6 +384,18 @@ namespace Blog.EFCoreMigration.Migrations
                         .HasColumnType("varchar(100)")
                         .HasComment("邮箱");
 
+                    b.Property<int>("FansCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasComment("粉丝数/被关注数");
+
+                    b.Property<int>("FollowingCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasComment("关注数");
+
                     b.Property<int>("Gender")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -422,11 +434,47 @@ namespace Blog.EFCoreMigration.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("Index_User_Email");
 
                     b.ToTable("User", null, t =>
                         {
                             t.HasComment("用户表");
+                        });
+                });
+
+            modelBuilder.Entity("Blog.Domain.UserDomain.Entity.UserOptions", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasComment("用户选项信息表Id");
+
+                    b.Property<bool>("IsFollowing")
+                        .HasColumnType("TINYINT(1)")
+                        .HasComment("是否已关注");
+
+                    b.Property<int>("ObjectId")
+                        .HasMaxLength(64)
+                        .HasColumnType("int")
+                        .HasComment("用户操作对象的用户Id");
+
+                    b.Property<int>("UserId")
+                        .HasMaxLength(64)
+                        .HasColumnType("int")
+                        .HasComment("用户Id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ObjectId")
+                        .HasDatabaseName("IX_UserOptions_ObjectId");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_UserOptions_UserId");
+
+                    b.ToTable("UserOptions", null, t =>
+                        {
+                            t.HasComment("用户选项信息表");
                         });
                 });
 

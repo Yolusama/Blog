@@ -52,6 +52,14 @@ public class User : AggregateRoot<int>
     /// 状态
     /// </summary>
     public int Status { get; set; } = (int)UserStatus.Normal;
+    /// <summary>
+    /// 关注博主数
+    /// </summary>
+    public int FollowingCount { get;private set; }
+    /// <summary>
+    /// 粉丝数/被关注数
+    /// </summary>
+    public int FansCount { get;private set; }
     
     public void EncryptPassword(string password)
     {
@@ -92,5 +100,21 @@ public class User : AggregateRoot<int>
        if(index < 0)
            throw new InvalidOperationException("无效的电子邮箱地址");
        Nickname = nameof(User).ToLower() + Email[..index];
+    }
+
+    public void Follow()
+    {
+        FollowingCount++;
+    }
+
+    public void Unfollow()
+    {
+        if (FollowingCount > 0)
+            FollowingCount--;
+    }
+
+    public void SetFansCount(int fansCount)
+    {
+        FansCount = fansCount;
     }
 }

@@ -35,6 +35,7 @@ public class ArticleController(IArticleService articleService,IArticleSourceServ
     
     [HttpPut]
     [Authorize]
+    [UnitOfWork]
     public async Task<ArticleSaveVO> SaveArticle([FromBody] ArticleSaveModel model)
     {
         return await articleService.SaveArticle(model);
@@ -49,12 +50,14 @@ public class ArticleController(IArticleService articleService,IArticleSourceServ
     
     [HttpGet]
     [Authorize]
+    [UnitOfWork]
     public async Task<ArticleRankingVO> GetArticleRanking()
     {
         return await articleService.GetArticleRanking();
     }
     
     [HttpPatch("{articleId}")]
+    [UnitOfWork]
     public async Task ViewArticle([FromRoute]string articleId)
     {
         var user = GetCurrentUser();
@@ -62,12 +65,14 @@ public class ArticleController(IArticleService articleService,IArticleSourceServ
     }
     
     [HttpDelete("{articleId}")]
+    [UnitOfWork]
     public async Task RemoveArticle([FromRoute]string articleId,[FromQuery]bool trueDelete = false)
     {
         await articleService.RemoveArticle(articleId,trueDelete);
     }
     
     [HttpPut("{articleId}")]
+    [UnitOfWork]
     public async Task LikeOrDislikeArticle([FromRoute]string articleId,[FromQuery]LikeOrDislikeEnum type)
     {
         var user = GetCurrentUser();
@@ -75,18 +80,21 @@ public class ArticleController(IArticleService articleService,IArticleSourceServ
     }
     
     [HttpPost]
+    [UnitOfWork]
     public async Task<long> WriteComment([FromBody] ArticleCommentDTO commentDto)
     {
         return await articleService.WriteComment(commentDto);
     }
     
     [HttpPut("{commentId}")]
+    [UnitOfWork]
     public async Task LikeOrDislikeComment([FromRoute] long commentId,[FromQuery] LikeOrDislikeEnum type)
     {
         await articleService.LikeOrDislikeComment(commentId, type);
     }
     
     [HttpPut("{articleId}")]
+    [UnitOfWork]
     public async Task CollectArticle([FromRoute]string articleId,[FromQuery]bool toCollect)
     {
         var user = GetCurrentUser();
@@ -94,6 +102,7 @@ public class ArticleController(IArticleService articleService,IArticleSourceServ
     }
     
     [HttpPost("{articleId}")]
+    [UnitOfWork]
     public async Task PublishArticle([FromRoute]string articleId)
     {
         await articleService.PublishArticle(articleId);

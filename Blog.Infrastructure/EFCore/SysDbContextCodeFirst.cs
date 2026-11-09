@@ -15,9 +15,9 @@ public partial class SysDbContext
         builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
         #region 用户表迁移
-
         builder.Entity<User>().ToTable(nameof(User), t => t.HasComment("用户表"));
         builder.Entity<User>().HasKey(u => u.Id);
+        
         builder.Entity<User>().Property(u => u.Id)
             .UseMySqlIdentityColumn()
             .HasComment("用户Id")
@@ -58,16 +58,26 @@ public partial class SysDbContext
         builder.Entity<User>().Property(u => u.LastLoginTime)
             .HasColumnType("datetime")
             .HasComment("上次登录时间");
+        builder.Entity<User>().Property(u => u.FollowingCount)
+            .HasDefaultValue(0)
+            .HasComment("关注数");
+        builder.Entity<User>().Property(u => u.FansCount)
+            .HasDefaultValue(0)
+            .HasComment("粉丝数/被关在数");
+
+        builder.Entity<User>()
+            .HasIndex(u => u.Email)
+            .IsUnique()
+            .HasDatabaseName("Index_User_Email");
 
         #endregion
 
         #region 文章表迁移
-
         builder.Entity<Article>().ToTable(nameof(Article),
             t => t.HasComment("文章表"));
-
         builder.Entity<Article>()
             .HasKey(a => a.Id);
+        
         builder.Entity<Article>()
             .Property(a => a.Id)
             .HasMaxLength(64)
@@ -154,7 +164,6 @@ public partial class SysDbContext
         #endregion
 
         #region 文章选项信息表迁移
-
         builder.Entity<ArticleOptions>().ToTable(nameof(ArticleOptions), t =>
             t.HasComment("文章选项信息表"));
 
@@ -211,10 +220,8 @@ public partial class SysDbContext
         #endregion
 
         #region 文字评论表迁移
-
         builder.Entity<ArticleComment>()
             .ToTable(nameof(ArticleComment), t => t.HasComment("文章评论表"));
-
         builder.Entity<ArticleComment>()
             .HasKey(x => x.Id);
         builder.Entity<ArticleComment>()
@@ -269,10 +276,8 @@ public partial class SysDbContext
         #endregion
 
         #region 文章资源表迁移
-
         builder.Entity<ArticleSource>().ToTable(nameof(ArticleSource),
             t => t.HasComment("文章内资源表"));
-        
         builder.Entity<ArticleSource>()
             .HasKey(x => x.Id);
 
@@ -410,6 +415,32 @@ public partial class SysDbContext
                 .HasDatabaseName("IX_ProjectAuditLog_ActionName");
         });
 
+        #endregion
+
+        #region 用户选项信息表
+        builder.Entity<UserOptions>(configurer =>
+        {
+            configurer.ToTable(nameof(UserOptions), t => t.HasComment("用户选项信息表"));
+            configurer.HasKey(uo => uo.Id);
+            
+            configurer.Property(uo => uo.Id)
+                .HasMaxLength(64)
+                .HasComment("用户选项信息表Id");
+            configurer.Property(uo => uo.UserId)
+                .HasMaxLength(64)
+                .HasComment("用户Id");
+            configurer.Property(uo => uo.ObjectId)
+                .HasMaxLength(64)
+                .HasComment("用户操作对象的用户Id");
+            configurer.Property(uo => uo.IsFollowing)
+                .HasColumnType("TINYINT(1)")
+                .HasComment("是否已关注");
+            
+            configurer.HasIndex(uo=>uo.UserId)
+                .HasDatabaseName("IX_UserOptions_UserId");
+            configurer.HasIndex(uo=>uo.ObjectId)
+                .HasDatabaseName("IX_UserOptions_ObjectId");
+        });
         #endregion
     }
 }
