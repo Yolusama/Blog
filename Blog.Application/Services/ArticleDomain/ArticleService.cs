@@ -98,16 +98,21 @@ public class ArticleService(ILogger<ArticleService> logger,
 
     public async Task<BasePageQueryResult<UserArticleVO>> GetUserArticles(UserArticleQuery query)
     {
+        var articleCommentQuery = articleCommentRepository.NoTracking
+            .GroupBy(ac => ac.ArticleId)
+            .Select(g => new { ArticleId = g.Key, ArticleCount = g.Count() });
         var articles = await articleRepository.NoTracking.Where(a => !a.IsDeleted)
             .WhereIf(query.IsDeleted.HasValue, a => a.IsDeleted == query.IsDeleted)
             .WhereIf(query.IsDraft.HasValue, a => a.IsDraft == query.IsDraft)
             .WhereIf(query.PublishStatus.HasValue, a => a.PublishStatus == query.PublishStatus)
             .Join(userRepository.NoTracking.Where(e => e.Status == (int)UserStatus.Normal),
                 a => a.AuthorId, u => u.Id, (a, u) => new { Article = a, User = u })
+            .GroupJoin(articleCommentQuery,e=>e.Article.Id,ac=>ac.ArticleId,(e,ac)=>new {e.Article,e.User,Comments = ac})
+            .SelectMany(e=>e.Comments.DefaultIfEmpty(),(e,ac)=>new {e.Article,e.User,Comment=ac})
             .WhereIf(!string.IsNullOrEmpty(query.Search), x =>
                 x.Article.Title.Contains(query.Search) || x.Article.Abstract.Contains(query.Search)
                                                        || x.User.Nickname.Contains(query.Search))
-            .Where(x => x.Article.AuthorId == query.UserId && x.Article.IsDraft == query.IsDraft)
+            .Where(x => x.Article.AuthorId == query.UserId)
             .Count(out var total)
             .OrderByDescending(x => x.Article.UploadTime)
             .Page(query.Page, query.PageSize)
@@ -124,23 +129,26 @@ public class ArticleService(ILogger<ArticleService> logger,
                 DislikeCount = x.Article.DislikeCount,
                 LikeCount = x.Article.LikeCount,
                 ViewCount = x.Article.ViewCount,
-                CollectCount = x.Article.CollectCount
+                CollectCount = x.Article.CollectCount,
+                CreateTime = x.Article.CreateTime,
+                CommentCount = (int?)x.Comment.ArticleCount ?? 0
             }).ToListAsync();
-        foreach (var article in articles)
-        {
-            article.CommentCount = await articleCommentRepository.NoTracking
-                .Where(o => o.ArticleId == article.ArticleId)
-                .CountAsync();
-        }
+        
         return articles.ToPagedResult(query.Page, query.PageSize, total);
     }
 
-    public async Task<BasePageQueryResult<UserArticleVO>> GetRecentArticles(ArticleQuery query)    
+    public async Task<BasePageQueryResult<UserArticleVO>> GetRecentArticles(ArticleQuery query)
     {
+        var articleCommentQuery = articleCommentRepository.NoTracking
+            .GroupBy(ac => ac.ArticleId)
+            .Select(g => new { ArticleId = g.Key, ArticleCount = g.Count() });
         var articles = await articleRepository.NoTracking.Where(a => !a.IsDeleted && !a.IsDraft
                 && a.PublishStatus == (int)ArticlePublishStatus.Published)
             .Join(userRepository.NoTracking.Where(e => e.Status == (int)UserStatus.Normal),
                 a => a.AuthorId, u => u.Id, (a, u) => new { Article = a, User = u })
+            .GroupJoin(articleCommentQuery,e=>e.Article.Id,ac=>ac.ArticleId,(e,ac)=>
+                new{e.Article,e.User,Comments = ac})
+            .SelectMany(e=>e.Comments.DefaultIfEmpty(),(e,ac)=>new{e.Article,e.User,Comment=ac})
             .WhereIf(!string.IsNullOrEmpty(query.Search), x =>
                 x.Article.Title.Contains(query.Search) || x.Article.Abstract.Contains(query.Search)
                                                        || x.User.Nickname.Contains(query.Search))
@@ -160,14 +168,10 @@ public class ArticleService(ILogger<ArticleService> logger,
                 DislikeCount = x.Article.DislikeCount,
                 LikeCount = x.Article.LikeCount,
                 ViewCount = x.Article.ViewCount,
-                CollectCount = x.Article.CollectCount
+                CollectCount = x.Article.CollectCount,
+                CreateTime = x.Article.CreateTime,
+                CommentCount = (int?)x.Comment.ArticleCount ?? 0
             }).ToListAsync();
-        foreach (var article in articles)
-        {
-            article.CommentCount = await articleCommentRepository.NoTracking
-                .Where(o => o.ArticleId == article.ArticleId)
-                .CountAsync();
-        }
         return articles.ToPagedResult(query.Page, query.PageSize, total);
     }
 

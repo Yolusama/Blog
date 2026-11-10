@@ -36,4 +36,5 @@ public class UserArticleVO
     public int DislikeCount { get; set; }
     public int CommentCount { get; set; }
     public int CollectCount { get; set; }
+    public DateTime? CreateTime { get; set; }
 }
