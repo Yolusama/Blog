@@ -5,18 +5,14 @@
                 <li v-for="article in articles.data" :key="article.articleId" class="article-item" tabindex="0"
                     @click="handleArticleClick(article)" @keydown.enter="handleItemKeydown($event, article)">
                     <div class="article-author">
-                        <img v-if="article.avatar" class="author-avatar" :src="article.avatar"
-                            :alt="article.nickname || '用户头像'" />
-                        <span v-else class="author-avatar author-avatar-fallback">
-                            {{ (article.nickname || '匿').slice(0, 1) }}
-                        </span>
-                        <span class="author-name">{{ article.nickname || '匿名用户' }}</span>
+                        <el-image :src="getSource(article.authorAvatar, 'Images')" class="author-avatar"></el-image>
+                        <span class="author-name">{{ article.authorName || '匿名用户' }}</span>
                     </div>
 
                     <h2 class="article-title">{{ article.title || '未命名文章' }}</h2>
                     <p v-if="article.abstract" class="article-abstract">{{ article.abstract }}</p>
 
-                    <div class="article-meta">
+                    <div class="article-meta" v-if="!article.isDraft">
                         <span class="meta-item">
                             <svg class="meta-icon" viewBox="0 0 24 24" aria-hidden="true">
                                 <path d="M12 5.5c-4.6 0-8.5 4-8.5 6.5s3.9 6.5 8.5 6.5 8.5-4 8.5-6.5-3.9-6.5-8.5-6.5z" />
@@ -38,14 +34,13 @@
                             </svg>
                             收藏 {{ formatCount(article.collectCount) }}
                         </span>
-
-                        <div v-if="withUserCreation" class="article-actions">
-                            <el-button link type="primary" class="item-action"
-                                @click.stop="handleEdit(article)">编辑</el-button>
-                            <el-button link type="danger" class="item-action"
-                                @click.stop="handleDelete(article)">删除</el-button>
-                        </div>
                     </div>
+                    <el-button v-if="withUserCreation" class="delete-button" link type="danger" circle
+                        aria-label="删除文章" title="删除文章" @click.stop="handleDelete(article)">
+                        <el-icon>
+                            <Close />
+                        </el-icon>
+                    </el-button>
                 </li>
             </ul>
 
@@ -61,7 +56,9 @@
 
         <div v-if="!usePagination" class="article-footer">
             <span v-if="loading" class="footer-loading">
-                <el-icon class="is-loading"><Loading /></el-icon>
+                <el-icon class="is-loading">
+                    <Loading />
+                </el-icon>
                 加载中...
             </span>
             <transition name="footer-fade">
@@ -77,10 +74,10 @@
 </template>
 
 <script setup lang="ts">
-import { Loading } from '@element-plus/icons-vue';
+import { Close, Loading } from '@element-plus/icons-vue';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import type { ArticleListItem, UserArticleQuery } from '../api/article.ts';
-import type { Pagination } from '../modules/Request.ts';
+import { getSource, type Pagination } from '../modules/Request.ts';
 
 /**
  * 文章列表：articles 为外部数据源（Pagination<T>），query 为查询条件；
@@ -205,10 +202,6 @@ function handleCreate() {
     emit('create');
 }
 
-function handleEdit(article: ArticleListItem) {
-    emit('edit', article);
-}
-
 function handleDelete(article: ArticleListItem) {
     emit('delete', article);
 }
@@ -243,10 +236,18 @@ defineExpose({ scrollToTop });
 }
 
 .article-item {
+    position: relative;
     padding: 20px 4px 18px;
     border-bottom: 1px solid #f2f3f5;
     cursor: pointer;
     transition: background-color 0.2s;
+}
+
+.delete-button {
+    position: absolute;
+    top: 14px;
+    right: 4px;
+    font-size: 18px;
 }
 
 .article-item:last-child {
@@ -332,7 +333,7 @@ defineExpose({ scrollToTop });
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-left: auto;
+    margin-right: auto;
 }
 
 .article-actions .item-action {

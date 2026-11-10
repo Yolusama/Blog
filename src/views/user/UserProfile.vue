@@ -30,7 +30,8 @@
                     <el-form-item label="头像">
                         <div class="avatar-editor">
                             <div class="avatar-preview">
-                                <img v-if="avatarPreview" :src="avatarPreview" alt="头像预览" />
+                                <el-image v-if="avatarPreview" :src="avatarPreview" 
+                                 :preview-src-list="[avatarPreview]"></el-image>
                                 <span v-else>{{ profileEditForm.nickname?.slice(0, 1) || '?' }}</span>
                             </div>
                             <div>
@@ -164,7 +165,7 @@ let user: User | undefined;
 const editRules: FormRules = {
     nickname: [
         { required: true, message: '请输入昵称', trigger: 'blur' },
-        { min: 1, max: 20, message: '昵称长度需在 1 到 20 个字符之间', trigger: 'blur' },
+        { min: 1, max: 100, message: '昵称长度需在 1 到 100 个字符之间', trigger: 'blur' },
     ],
     email: [
         { required: true, message: '请输入邮箱', trigger: 'blur' },
@@ -201,6 +202,7 @@ onMounted(() => {
                 return;
             }
             Object.assign(profile, res.data);
+            avatarPreview.value = getSource(profile.avatar,"Images");
             syncFormFromProfile();
         })
         .catch((error) => ElNotification.error(error));
@@ -236,7 +238,7 @@ function syncFormFromProfile() {
         avatarFile: undefined,
     });
     clearAvatarPreview();
-    avatarPreview.value = profile.avatar ? getSource(profile.avatar) : '';
+    avatarPreview.value = getSource(profile.avatar,"Images");
 }
 
 function clearAvatarPreview() {

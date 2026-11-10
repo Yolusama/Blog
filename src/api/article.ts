@@ -31,15 +31,17 @@ export const ArticleStatusLabels: Record<ArticleStatus, string> = {
 export interface ArticleListItem {
   articleId: string;
   title: string;
+  isDraft:boolean,
   abstract?: string;
-  userId?: number;
-  nickname?: string;
-  avatar?: string;
-  createTime?: string;
-  publishedStatus?: ArticleStatus;
-  viewCount?: number;
-  likeCount?: number;
-  collectCount?: number;
+  authorId: number;
+  authorName: string;
+  authorAvatar: string;
+  createTime: string;
+  uploadTime?:Date,
+  publishedStatus: ArticleStatus;
+  viewCount: number;
+  likeCount: number;
+  collectCount: number;
 }
 
 export interface UserArticleQuery extends BasePageQuery
