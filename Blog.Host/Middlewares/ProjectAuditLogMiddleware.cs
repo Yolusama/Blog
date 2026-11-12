@@ -138,6 +138,7 @@ public class ProjectAuditLogMiddleware(
         if (context.Request.Method != HttpMethods.Get || context.Request.Method != HttpMethods.Head
                                                       || context.Request.Method != HttpMethods.Delete)
         {
+            context.Request.EnableBuffering();
             if (context.Request.HasFormContentType)
             {
                 var form = context.Request.Form;
@@ -162,7 +163,6 @@ public class ProjectAuditLogMiddleware(
             }
             else
             {
-                context.Request.EnableBuffering();
                 var bodyParameters = actionDescriptor.Parameters;
                 if (bodyParameters.Count > 0)
                 {
@@ -177,7 +177,6 @@ public class ProjectAuditLogMiddleware(
                     }
                 }
             }
-
             context.Request.Body.Position = 0;
         }
 

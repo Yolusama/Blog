@@ -1,4 +1,5 @@
 ﻿using Blog.Shared;
+using Blog.Shared.Functional;
 
 namespace Blog.Domain.UserDomain.Entity;
 
@@ -6,7 +7,7 @@ public class UserOptions : AggregateRoot<string>
 {
     public UserOptions()
     {
-        Id = Guid.NewGuid().ToString();
+        Id = RandomGenerator.Guid();
     }
     /// <summary>
     /// 用户Id

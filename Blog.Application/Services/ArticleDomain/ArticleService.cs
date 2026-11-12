@@ -13,6 +13,7 @@ using Blog.Shared;
 using Blog.Shared.Enums;
 using Blog.Shared.Exceptions;
 using Blog.Shared.Functional;
+using Blog.Shared.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace Blog.Application.Services.ArticleDomain;
@@ -49,48 +50,37 @@ public class ArticleService(ILogger<ArticleService> logger,
                 model.Title = Constants.Untitled;
             }
             model.ShallowCopy(article);
-            if (model.Sources.Count > 0)
-            {
-              var articleSources = model.Sources.ShallowCopy<ArticleSourceModel,ArticleSource>();
-              await articleSourceRepository.AddRangeAsync(articleSources.ToArray());
-            }
             await articleRepository.AddAsync(article);
         }
         else
         {
-            model.ShallowCopy(article);
-            if (article.SavedWhenInit)
-                article.SavedWhenInit = false;
-            var sourceIds = model.Sources.Select(s => s.SourceId)
-                .ToList();
-            var sources = articleSourceRepository.All.Where(s => s.ArticleId == model.ArticleId)
-                .ToList();
-            var dbSourceIds = sources.Select(s => s.Id);
-            var expectIds = dbSourceIds.Except(sourceIds.Where(s => s != 0)).ToList();
-            if (expectIds.Count > 0)
+            // 保存前先取出原内容，用于对比 Markdown 中的内嵌资源
+            var originalContent = model.ArticleOriginalContent;
+            if (string.IsNullOrEmpty(originalContent))
             {
-                var toDelete = sources.Where(s => !expectIds.Contains(s.Id)).ToArray();
-                foreach (var item in toDelete)
+                var originalFileName = string.IsNullOrEmpty(model.Content) ? article.Content : model.Content;
+                if (!string.IsNullOrEmpty(originalFileName))
                 {
-                    if(item.IsHyperLink)continue;
-                    await articleSourceHandler.RemoveSource(item.FileName, article.AuthorId);
-                    articleSourceRepository.Delete(item);
+                    try
+                    {
+                        originalContent = await articleSourceHandler.ReadArticleContent(originalFileName, article.AuthorId);
+                    }
+                    catch (FileNotFoundException)
+                    {
+                        logger.LogWarning("读取文章 {ArticleId} 原始内容失败，跳过资源对比", article.Id);
+                    }
                 }
-                articleSourceRepository.UpdateRange(model.Sources.Where(s => s.SourceId != 0
-                                                                             && !expectIds.Contains(s.SourceId))
-                    .ShallowCopy<ArticleSourceModel, ArticleSource>().ToArray());
             }
 
-            if (!string.IsNullOrEmpty(model.ArticleTrueContent))
+            model.ShallowCopy(article);
+            // 内容未变化时无需重复写文件，也无需同步资源
+            if (!string.IsNullOrEmpty(model.ArticleTrueContent) && model.ArticleTrueContent != originalContent)
             {
-                var fileName = RandomGenerator.SnowflakeId() + Constants.MarkDownFileExtension;
+                var fileName = string.IsNullOrEmpty(model.Content) ? RandomGenerator.SnowflakeId() + Constants.MarkDownFileExtension : model.Content;
                 article.Content = await articleSourceHandler.StoreArticleContent(fileName, article.AuthorId, model.ArticleTrueContent);
+                await SyncArticleSources(article.Id, article.AuthorId, originalContent, model.ArticleTrueContent);
             }
 
-            var toInsert = model.Sources.Where(s => s.SourceId == 0)
-                .ShallowCopy<ArticleSourceModel, ArticleSource>().ToArray();
-            if(toInsert.Length > 0)
-              await articleSourceRepository.AddRangeAsync(toInsert);
             articleRepository.Update(article);
         }
         return new ArticleSaveVO { ArticleId = article.Id, Content = article.Content };
@@ -188,12 +178,15 @@ public class ArticleService(ILogger<ArticleService> logger,
         var model = new ArticleSaveModel();
         model.ArticleId = article.Id;
         if (!string.IsNullOrEmpty(article.Content))
+        {
             model.ArticleTrueContent = await articleSourceHandler.ReadArticleContent(article.Content, article.AuthorId);
+            // 原内容用作下次保存时比较内嵌资源的基线
+            model.ArticleOriginalContent = model.ArticleTrueContent;
+        }
         article.ShallowCopy(model, (src, dest) =>
         {
             dest.UserId = src.AuthorId;
         });
-        model.Sources = sources.ShallowCopy<ArticleSource,ArticleSourceModel>().ToList();
         return model;
     }
 
@@ -277,7 +270,6 @@ public class ArticleService(ILogger<ArticleService> logger,
             if (article == null)
                 throw new ServiceException("文章不存在");
             article.View();
-            articleRepository.Update(article);
         }
     }
 
@@ -307,8 +299,6 @@ public class ArticleService(ILogger<ArticleService> logger,
         }
 
         articleOptions.UpdateTime = DateTime.Now;
-        articleRepository.Update(article);
-        articleOptionsRepository.Update(articleOptions);
     }
 
     public async Task PublishArticle(string articleId)
@@ -317,7 +307,6 @@ public class ArticleService(ILogger<ArticleService> logger,
         if (article == null)
             throw new ServiceException("文章已不存在");
         article.WhenUpload();
-        articleRepository.Update(article);
     }
 
     public async Task<long> WriteComment(ArticleCommentDTO commentDto)
@@ -378,7 +367,7 @@ public class ArticleService(ILogger<ArticleService> logger,
             throw new ServiceException("文章不存在", (int)HttpStatusCode.NotFound);
 
         bool optionsInit = false;
-        var options = await articleOptionsRepository.All.FirstOrDefaultAsync(o => o.ArticleId == articleId && o.UserId == userId);
+        var options = await articleOptionsRepository.NoTracking.FirstOrDefaultAsync(o => o.ArticleId == articleId && o.UserId == userId);
         if (options == null)
         {
             options = new ArticleOptions(articleId, userId);
@@ -404,18 +393,148 @@ public class ArticleService(ILogger<ArticleService> logger,
     private async Task RemoveArticleAllContent(Article article)
     {
         articleRepository.Delete(article);
-        var options = await articleOptionsRepository.All.FirstOrDefaultAsync(o => o.ArticleId == article.Id);
+        var options = await articleOptionsRepository.NoTracking.FirstOrDefaultAsync(o => o.ArticleId == article.Id);
         if(options != null)
             articleOptionsRepository.Delete(options);
-        var comments = await articleCommentRepository.All.Where(ac=>ac.ArticleId == article.Id).ToArrayAsync();
+        var comments = await articleCommentRepository.NoTracking.Where(ac=>ac.ArticleId == article.Id).ToArrayAsync();
         if(comments.Length > 0 )
             articleCommentRepository.DeleteRange(comments);
-        var sources = await articleSourceRepository.All.Where(ac => ac.ArticleId == article.Id).ToArrayAsync();
+        var sources = await articleSourceRepository.NoTracking.Where(ac => ac.ArticleId == article.Id).ToArrayAsync();
         if (sources.Length > 0)
         {
-            foreach (var source in sources.AsEnumerable())
-               await articleSourceHandler.RemoveSource(source.FileName, article.AuthorId);
+            foreach (var source in sources)
+            {
+                // 外部超链接没有本地文件，只删除记录
+                if (!source.IsHyperLink && !string.IsNullOrEmpty(source.FileName))
+                    await articleSourceHandler.RemoveSource(source.FileName, article.AuthorId);
+            }
             articleSourceRepository.DeleteRange(sources);
+        }
+    }
+
+    /// <summary>
+    /// 同步文章内嵌资源：
+    /// 1.删除原内容中存在、但新内容中已不再引用的资源；
+    /// 2.新增新内容中引用、但原本不存在的资源记录
+    /// </summary>
+    /// <param name="articleId">文章Id</param>
+    /// <param name="authorId">作者Id</param>
+    /// <param name="originalContent">原 Markdown 内容</param>
+    /// <param name="currentContent">新 Markdown 内容</param>
+    private async Task SyncArticleSources(string articleId, int authorId, string? originalContent, string? currentContent)
+    {
+        await RemoveUnusedArticleSources(articleId, authorId, originalContent, currentContent);
+        await AddMissingArticleSources(articleId, authorId, originalContent, currentContent);
+    }
+
+    /// <summary>
+    /// 删除原内容中存在、但新内容中已不再引用的内嵌资源
+    /// （本地资源同时删除物理文件，外部超链接仅删除记录）
+    /// </summary>
+    /// <param name="articleId">文章Id</param>
+    /// <param name="authorId">作者Id</param>
+    /// <param name="originalContent">原 Markdown 内容</param>
+    /// <param name="currentContent">新 Markdown 内容</param>
+    private async Task RemoveUnusedArticleSources(string articleId, int authorId, string? originalContent, string? currentContent)
+    {
+        var removedResources = MarkdownResourceUtil.ExtractRemovedResources(originalContent, currentContent);
+        if (removedResources.Count == 0)
+            return;
+
+        var removedFileNames = removedResources
+            .Where(r => !r.IsHyperLink && !string.IsNullOrEmpty(r.FileName))
+            .Select(r => r.FileName!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var removedUrls = removedResources
+            .Where(r => r.IsHyperLink)
+            .Select(r => r.Url)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var sources = await articleSourceRepository.NoTracking
+            .Where(s => s.ArticleId == articleId
+                        && ((!s.IsHyperLink && s.FileName != null && removedFileNames.Contains(s.FileName))
+                            || (s.IsHyperLink && s.Url != null && removedUrls.Contains(s.Url))))
+            .ToArrayAsync();
+        foreach (var source in sources)
+        {
+            // 外部超链接没有本地文件，只需删除记录
+            if (!source.IsHyperLink && !string.IsNullOrEmpty(source.FileName))
+                await articleSourceHandler.RemoveSource(source.FileName, authorId);
+        }
+        articleSourceRepository.DeleteRange(sources);
+    }
+
+    /// <summary>
+    /// 新增新内容中引用、但原本没有的资源记录
+    /// （本地资源需文件真实存在，外部超链接直接以 Url 登记）
+    /// </summary>
+    /// <param name="articleId">文章Id</param>
+    /// <param name="authorId">作者Id</param>
+    /// <param name="originalContent">原 Markdown 内容</param>
+    /// <param name="currentContent">新 Markdown 内容</param>
+    private async Task AddMissingArticleSources(string articleId, int authorId, string? originalContent, string? currentContent)
+    {
+        const int maxArticleSourceUrlLength = 2000;
+        var addedResources = MarkdownResourceUtil.ExtractAddedResources(originalContent, currentContent);
+        if (addedResources.Count == 0)
+            return;
+
+        var existedSources = await articleSourceRepository.NoTracking
+            .Where(s => s.ArticleId == articleId)
+            .Select(s => new { s.FileName, s.Url, s.IsHyperLink })
+            .ToArrayAsync();
+        var existedFileNames = new HashSet<string>(
+            existedSources.Where(s => !s.IsHyperLink && !string.IsNullOrEmpty(s.FileName)).Select(s => s.FileName!),
+            StringComparer.OrdinalIgnoreCase);
+        var existedUrls = new HashSet<string>(
+            existedSources.Where(s => s.IsHyperLink && !string.IsNullOrEmpty(s.Url)).Select(s => s.Url!),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var resource in addedResources)
+        {
+            if (resource.IsHyperLink)
+            {
+                if (existedUrls.Contains(resource.Url))
+                    continue;
+                if (resource.Url.Length > maxArticleSourceUrlLength)
+                {
+                    logger.LogWarning("外部资源地址过长，已跳过登记: {ArticleId}", articleId);
+                    continue;
+                }
+
+                var hyperLinkSource = new ArticleSource
+                {
+                    FileName = null,
+                    Url = resource.Url,
+                    IsHyperLink = true
+                };
+                hyperLinkSource.Attach(articleId);
+                await articleSourceRepository.AddAsync(hyperLinkSource);
+                existedUrls.Add(resource.Url);
+                continue;
+            }
+
+            var fileName = resource.FileName;
+            if (string.IsNullOrEmpty(fileName) || existedFileNames.Contains(fileName))
+                continue;
+            // 只登记真实存在的本地资源文件，避免把站内其他链接记录成资源
+            if (!articleSourceHandler.SourceExists(fileName, authorId))
+            {
+                logger.LogDebug("资源文件 {FileName} 不存在，已跳过登记: {ArticleId}", fileName, articleId);
+                continue;
+            }
+
+            var source = new ArticleSource
+            {
+                FileName = fileName,
+                Url = null,
+                IsHyperLink = false
+            };
+            source.Attach(articleId);
+            await articleSourceRepository.AddAsync(source);
+            existedFileNames.Add(fileName);
         }
     }
 }

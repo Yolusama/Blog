@@ -52,13 +52,12 @@ public class UserService(
         fileInfo.CreateIfNotExists();
         using var stream = fileInfo.OpenWrite();
         await file.CopyToAsync(stream);
-        var user =await userRepository.NoTracking.Where(u => u.Status == (int)UserStatus.AbNormal)
+        var user =await userRepository.All.Where(u => u.Status == (int)UserStatus.AbNormal)
             .Where(u => u.Id == userId)
             .FirstOrDefaultAsync();
         if(user == null)
             throw new ServiceException("用户不存在！",(int)HttpStatusCode.NotFound);
         user.Avatar = newFileName;
-        userRepository.Update(user);
         return newFileName;
     }
 }

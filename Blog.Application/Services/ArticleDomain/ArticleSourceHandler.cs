@@ -75,4 +75,10 @@ public class ArticleSourceHandler(IConfiguration configuration) : IArticleSource
             throw new ServiceException(e.Message);
         }
     }
+
+    public bool SourceExists(string fileName, int userId)
+    {
+        var path = Path.Combine(configuration[Constants.StaticFilesStorePath], Source, userId.ToString(), fileName);
+        return File.Exists(path);
+    }
 }
