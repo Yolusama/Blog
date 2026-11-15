@@ -147,6 +147,9 @@ public partial class SysDbContext
         builder.Entity<Article>().Property(x=>x.CreationDeclaration)
             .HasMaxLength(256)
             .HasComment("创作声明");
+        builder.Entity<Article>().Property(x => x.IsDeleted)
+            .HasColumnType("TINYINT(1)")
+            .HasComment("删除标识");
 
         builder.Entity<Article>()
             .HasIndex(e => e.AuthorId)

@@ -68,7 +68,9 @@ public class ProjectAuditLogMiddleware(
             httpContext.Response.ContentType = "application/json";
             var failResult = ResponseResult.Fail(e.Message);
             if (e is ServiceException serviceException)
+            {
                 failResult.Code = serviceException.Code;
+            }
             await httpContext.Response
                 .WriteAsync(failResult.ToJson(Constants.SmallCamelcase));
         }

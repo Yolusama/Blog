@@ -14,6 +14,7 @@ public class Article : AggregateRoot<string>
         ViewCount = 0;
         LikeCount = 0;
         DislikeCount = 0;
+        CollectCount = 0;
     }
     public Article(bool isDraft) : this()
     {

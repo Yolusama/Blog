@@ -16,4 +16,9 @@
       <ProjectReference Include="..\Blog.Application\Blog.Application.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Files\Creations\20002\" />
+      <Folder Include="Files\Source\20002\" />
+    </ItemGroup>
+
 </Project>

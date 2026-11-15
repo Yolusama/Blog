@@ -107,5 +107,11 @@ public class ArticleController(IArticleService articleService,IArticleSourceServ
     {
         await articleService.PublishArticle(articleId);
     }
+
+    [HttpPatch("{articleId}")]
+    public async Task RecoverArticle([FromRoute] string articleId)
+    {
+        await articleService.RecoverArticle(articleId);
+    }
     
 }

@@ -48,7 +48,12 @@ public static class MarkdownResourceUtil
     /// 提取 Markdown 中所有内嵌资源（同时包含本地资源与外部超链接），已按资源键去重
     /// </summary>
     /// <param name="content">Markdown 内容</param>
-    public static IReadOnlyList<MarkdownResource> ExtractResourceEntries(string? content)
+    /// <param name="resolveLocalFileName">
+    /// 可选：将形如 http://host/files/Source/{userId}/{fileName} 的站内静态资源地址解析为本地文件名。
+    /// 返回非空文件名时按本地资源处理，否则仍按外部超链接处理。
+    /// </param>
+    public static IReadOnlyList<MarkdownResource> ExtractResourceEntries(string? content,
+        Func<string, string?>? resolveLocalFileName = null)
     {
         if (string.IsNullOrWhiteSpace(content))
             return Array.Empty<MarkdownResource>();
@@ -64,7 +69,24 @@ public static class MarkdownResourceUtil
                     continue;
 
                 var isHyperLink = IsExternalResource(url);
-                var fileName = isHyperLink ? null : GetFileName(url);
+                string? fileName = null;
+                // 上传后的资源通过静态文件访问，虽然以 URL 形式出现，但尾部带文件名，
+                // 若能被解析为真实的本地资源，则按本地资源登记而非外部超链接。
+                if (isHyperLink)
+                {
+                    var resolvedFileName = resolveLocalFileName?.Invoke(url);
+                    if (!string.IsNullOrEmpty(resolvedFileName))
+                    {
+                        isHyperLink = false;
+                        fileName = resolvedFileName;
+                    }
+                }
+
+                if (isHyperLink)
+                    fileName = null;
+                else
+                    fileName ??= GetFileName(url);
+
                 if (!isHyperLink && string.IsNullOrEmpty(fileName))
                     continue;
 
@@ -81,9 +103,11 @@ public static class MarkdownResourceUtil
     /// 提取内容中所有本地内嵌资源的地址
     /// </summary>
     /// <param name="content">Markdown 内容</param>
-    public static IReadOnlyList<string> ExtractResources(string? content)
+    /// <param name="resolveLocalFileName">可选：将站内静态资源地址解析为本地文件名</param>
+    public static IReadOnlyList<string> ExtractResources(string? content,
+        Func<string, string?>? resolveLocalFileName = null)
     {
-        return ExtractResourceEntries(content)
+        return ExtractResourceEntries(content, resolveLocalFileName)
             .Where(r => !r.IsHyperLink)
             .Select(r => r.Url)
             .ToArray();
@@ -93,9 +117,11 @@ public static class MarkdownResourceUtil
     /// 提取内容中所有本地内嵌资源的文件名（去掉路径、查询参数与锚点）
     /// </summary>
     /// <param name="content">Markdown 内容</param>
-    public static IReadOnlyList<string> ExtractResourceFileNames(string? content)
+    /// <param name="resolveLocalFileName">可选：将站内静态资源地址解析为本地文件名</param>
+    public static IReadOnlyList<string> ExtractResourceFileNames(string? content,
+        Func<string, string?>? resolveLocalFileName = null)
     {
-        return ExtractResourceEntries(content)
+        return ExtractResourceEntries(content, resolveLocalFileName)
             .Where(r => !r.IsHyperLink)
             .Select(r => r.FileName!)
             .Where(name => !string.IsNullOrEmpty(name))
@@ -107,9 +133,11 @@ public static class MarkdownResourceUtil
     /// 提取内容中所有外部超链接资源地址
     /// </summary>
     /// <param name="content">Markdown 内容</param>
-    public static IReadOnlyList<string> ExtractHyperLinkResources(string? content)
+    /// <param name="resolveLocalFileName">可选：将站内静态资源地址解析为本地文件名</param>
+    public static IReadOnlyList<string> ExtractHyperLinkResources(string? content,
+        Func<string, string?>? resolveLocalFileName = null)
     {
-        return ExtractResourceEntries(content)
+        return ExtractResourceEntries(content, resolveLocalFileName)
             .Where(r => r.IsHyperLink)
             .Select(r => r.Url)
             .ToArray();
@@ -120,14 +148,17 @@ public static class MarkdownResourceUtil
     /// </summary>
     /// <param name="originalContent">原内容</param>
     /// <param name="currentContent">新内容</param>
-    public static IReadOnlyList<MarkdownResource> ExtractRemovedResources(string? originalContent, string? currentContent)
+    /// <param name="resolveLocalFileName">可选：将站内静态资源地址解析为本地文件名</param>
+    public static IReadOnlyList<MarkdownResource> ExtractRemovedResources(string? originalContent,
+        string? currentContent, Func<string, string?>? resolveLocalFileName = null)
     {
-        var originalResources = ExtractResourceEntries(originalContent);
+        var originalResources = ExtractResourceEntries(originalContent, resolveLocalFileName);
         if (originalResources.Count == 0)
             return Array.Empty<MarkdownResource>();
 
         var currentKeys = new HashSet<string>(
-            ExtractResourceEntries(currentContent).Select(r => r.Key), StringComparer.OrdinalIgnoreCase);
+            ExtractResourceEntries(currentContent, resolveLocalFileName).Select(r => r.Key),
+            StringComparer.OrdinalIgnoreCase);
         return originalResources.Where(r => !currentKeys.Contains(r.Key)).ToArray();
     }
 
@@ -136,14 +167,17 @@ public static class MarkdownResourceUtil
     /// </summary>
     /// <param name="originalContent">原内容</param>
     /// <param name="currentContent">新内容</param>
-    public static IReadOnlyList<MarkdownResource> ExtractAddedResources(string? originalContent, string? currentContent)
+    /// <param name="resolveLocalFileName">可选：将站内静态资源地址解析为本地文件名</param>
+    public static IReadOnlyList<MarkdownResource> ExtractAddedResources(string? originalContent,
+        string? currentContent, Func<string, string?>? resolveLocalFileName = null)
     {
-        var currentResources = ExtractResourceEntries(currentContent);
+        var currentResources = ExtractResourceEntries(currentContent, resolveLocalFileName);
         if (currentResources.Count == 0)
             return Array.Empty<MarkdownResource>();
 
         var originalKeys = new HashSet<string>(
-            ExtractResourceEntries(originalContent).Select(r => r.Key), StringComparer.OrdinalIgnoreCase);
+            ExtractResourceEntries(originalContent, resolveLocalFileName).Select(r => r.Key),
+            StringComparer.OrdinalIgnoreCase);
         return currentResources.Where(r => !originalKeys.Contains(r.Key)).ToArray();
     }
 
@@ -172,7 +206,7 @@ public static class MarkdownResourceUtil
     /// <summary>
     /// 从资源地址中取出文件名
     /// </summary>
-    private static string GetFileName(string url)
+    public static string GetFileName(string url)
     {
         var endIndex = url.IndexOfAny(new[] { '?', '#' });
         if (endIndex >= 0)

@@ -67,7 +67,8 @@ namespace Blog.EFCoreMigration.Migrations
                         .HasComment("点踩数");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
+                        .HasColumnType("TINYINT(1)")
+                        .HasComment("删除标识");
 
                     b.Property<bool>("IsDraft")
                         .HasColumnType("tinyint(1)")
@@ -388,7 +389,7 @@ namespace Blog.EFCoreMigration.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0)
-                        .HasComment("粉丝数/被关注数");
+                        .HasComment("粉丝数/被关在数");
 
                     b.Property<int>("FollowingCount")
                         .ValueGeneratedOnAdd()

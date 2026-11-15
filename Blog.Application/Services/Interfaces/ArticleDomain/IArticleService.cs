@@ -15,6 +15,7 @@ public interface IArticleService
     public Task<BasePageQueryResult<UserArticleVO>> GetRecentArticles(ArticleQuery query);
     public Task<ArticleSaveModel> GetArticleContent(string articleId);
     public Task<ArticleRankingVO> GetArticleRanking();
+    public Task RecoverArticle(string articleId);
     public Task RemoveArticle(string articleId,bool trueDelete = false);
     public Task ViewArticle(string articleId,int userId);
     public Task LikeOrDislikeArticle(string articleId,int userId,LikeOrDislikeEnum type);

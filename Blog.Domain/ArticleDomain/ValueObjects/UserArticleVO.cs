@@ -14,10 +14,6 @@ public class UserArticleVO
     /// </summary>
     public int AuthorId { get; set; }
     /// <summary>
-    /// 内容
-    /// </summary>
-    public string Content { get; set; }
-    /// <summary>
     /// 简介摘要
     /// </summary>
     public string Abstract { get; set; }
@@ -37,4 +33,5 @@ public class UserArticleVO
     public int CommentCount { get; set; }
     public int CollectCount { get; set; }
     public DateTime? CreateTime { get; set; }
+    public bool SaveWhenInit { get; set; } = true;
 }

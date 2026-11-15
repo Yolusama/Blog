@@ -134,6 +134,11 @@ public static class Expansions
         if (!file.Exists)
             file.Create().Close();
     }
+    
+    public static int IntValue<TEnum>(this TEnum @enum) where TEnum : Enum
+    {
+        return Convert.ToInt32(@enum);
+    }
     private static bool IsBaseType(Type type)
     {
         return type.IsPrimitive || type.IsEnum 
