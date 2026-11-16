@@ -59,3 +59,11 @@ export function GetAgeWithMonth(date:Date)
     const sign = isFuture ? '-' : '';
     return `${sign}${years}年${months}月${days}天`;
 }
+
+export function ToFromData(obj:any)
+{
+    const formData = new FormData();
+    for(let pro in obj)
+        formData.append(pro,obj[pro]);
+    return formData;
+}

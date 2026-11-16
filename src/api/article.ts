@@ -1,5 +1,4 @@
 import request, { type BasePageQuery } from "../modules/Request";
-import { type ArticleSourceModel } from "./artcileSource";
 
 export interface ArticleSaveModel {
   articleId?: string;
@@ -7,9 +6,10 @@ export interface ArticleSaveModel {
   content?: string
   abstract?: string;
   articleTrueContent?:string;
+  // 上次保存时的原文，供服务端比对 Markdown 内嵌资源的增删
+  articleOriginalContent?:string;
   userId: number;
   isDraft: boolean;
-  sources: ArticleSourceModel[];
 }
 
 export const ArticleStatus = {
@@ -42,12 +42,13 @@ export interface ArticleListItem {
   viewCount: number;
   likeCount: number;
   collectCount: number;
+  saveWhenInit:boolean;
 }
 
 export interface UserArticleQuery extends BasePageQuery
 {
    userId:number,
-   isDraft:boolean,
+   isDraft?:boolean,
    publishedStatus?:ArticleStatus,
    startDate?:string,
    endDate?:string,
@@ -69,4 +70,12 @@ export function GetUserArticles(query:UserArticleQuery)
 
 export function GetRecentArticles(query:BasePageQuery){
   return request.get("/api/Article/GetRecentArticles",{params:query});
+}
+
+export function RemoveArticle(articleId:string,trueDelete?:boolean)
+{
+  const doTrueDelete = trueDelete!=undefined && trueDelete;
+  return request.delete(`/api/Article/RemoveArticle/${articleId}`,{
+    params:{trueDelete:doTrueDelete}
+  });
 }

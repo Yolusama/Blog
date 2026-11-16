@@ -20,7 +20,7 @@ routes.push({
 routes.push({
     path: '/article/editor/:articleId?',
     name: 'ArticleEditor',
-    component: () => import('../views/article/ArticleEditOrView.vue')
+    component: () => import('../views/article/ArticleEditorView.vue')
 });
 routes.push({
     path: '/article/creation',

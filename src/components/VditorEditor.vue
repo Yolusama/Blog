@@ -39,6 +39,7 @@ function createEditor(value: string) {
         cdn,
         mode: props.mode,
         value,
+        resize:{enable:true},
         placeholder: props.placeholder,
         lang: 'zh_CN',
         icon: 'ant',
@@ -77,7 +78,9 @@ function destroyEditor() {
     vditor = null;
 }
 
-onMounted(() => createEditor(props.modelValue));
+onMounted(() => {
+    createEditor(props.modelValue)
+});
 
 onBeforeUnmount(destroyEditor);
 
@@ -85,7 +88,9 @@ async function uploadHandler(files: File[])  {
     if (!props.onUpload) return null;
     for (const file of files) {
         const url = await props.onUpload(file);
-        vditor?.insertValue(`![](${url})`);
+        if (url) {
+            vditor?.insertValue(`![Image](${url})`);
+        }
     }
     return null;
 }

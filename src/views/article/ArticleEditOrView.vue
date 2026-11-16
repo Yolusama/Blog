@@ -17,7 +17,7 @@
             </button>
         </header>
 
-        <!-- 自定义工具栏先注释掉，改用 Vditor 自带工具栏
+        <!-- 自定义工具栏先注释掉，改用编辑器自带工具栏
         <nav class="editor-toolbar" aria-label="文章编辑工具栏">
             <div class="toolbar-inner">
                 <template v-for="(group, groupIndex) in toolGroups" :key="groupIndex">
@@ -97,23 +97,28 @@
                     placeholder="请输入文章标题（2～100个字）" />
 
                 <div class="editor-body">
-                    <VditorEditor v-model="articleContent.articleTrueContent" :mode="viewMode" :onUpload="uploadSource"
-                        placeholder="创作" />
+                    <div class="editor-surface">
+                        <TiptapEditor v-if="editorMode === 'rich'" ref="tiptapEditorRef"
+                            v-model="articleContent.articleTrueContent" :onUpload="uploadSource" placeholder="创作" />
+                        <ArticleMarkdownEditorView v-else ref="markdownEditorRef"
+                            v-model="articleContent.articleTrueContent" :onUpload="uploadSource" placeholder="创作" />
+                    </div>
                 </div>
 
                 <div class="editor-footer">
                     <div class="footer-controls">
-                        <div class="view-switch">
-                            <button v-for="item in viewModes" :key="item.value" type="button" class="switch-button"
-                                :class="{ 'is-active': viewMode === item.value }" @click="viewMode = item.value">
-                                {{ item.label }}
-                            </button>
-                        </div>
+                        <button type="button" class="mode-button" @click="toggleEditorMode">
+                            <el-icon class="mode-icon" :size="15">
+                                <Document v-if="editorMode === 'rich'" />
+                                <EditPen v-else />
+                            </el-icon>
+                            {{ editorMode === 'rich' ? 'Markdown 模式' : '富文本模式' }}
+                        </button>
                         <button type="button" class="width-button" @click="isWide = !isWide">
                             {{ isWide ? '标准宽度' : '宽屏模式' }}
                         </button>
                         <el-button-group>
-                            <el-button type="primary" @click="saveArticle(articleContent,false)">
+                            <el-button type="primary" @click="saveArticle(articleContent, false)">
                                 保存
                             </el-button>
                             <el-button type="info" @click="openPreview">
@@ -132,7 +137,8 @@
             append-to-body @opened="renderPreview">
             <div class="preview-scroll">
                 <h1 v-if="articleContent.title" class="preview-title">{{ articleContent.title }}</h1>
-                <div ref="previewRef" class="preview-body"></div>
+                <div ref="previewRef" class="preview-body"
+                    :class="{ 'tiptap-content': editorMode === 'rich' }"></div>
             </div>
             <template #footer>
                 <div class="preview-actions">
@@ -145,54 +151,61 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import VditorEditor from '../../components/VditorEditor.vue';
-import Vditor from 'vditor';
-import 'vditor/dist/index.css';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
+import TiptapEditor from '../../components/TiptapEditor.vue';
+import ArticleMarkdownEditorView from './ArticleMarkdownEditorView.vue';
+import '../../components/tiptap/tiptap-content.css';
+import { Document, EditPen } from '@element-plus/icons-vue';
 import { UploadFile } from '../../api/artcileSource.ts';
-import { ElMessage, ElNotification } from 'element-plus';
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
 import { type ArticleSaveModel, GetArticleContent, SaveArticle } from '../../api/article.ts';
 import stateStroge from '../../modules/StateStorage.ts';
 import { type User } from '../../api/user.ts';
 import { loading } from '../../modules/Utils.ts';
+import { getSource } from '../../modules/Request.ts';
+type EditorMode = 'rich' | 'markdown';
 
-/* 自定义工具栏类型先注释掉
-interface ToolMenuItem {
-    label: string;
-    value: string;
+interface RichTextEditorInstance {
+    getHTML: () => string;
+    getMarkdown: () => string;
+    isEmpty: () => boolean;
 }
 
-interface ToolItem {
-    key: string;
-    label: string;
-    icon?: string;
-    glyph?: string;
-    menu?: ToolMenuItem[];
+interface MarkdownEditorInstance {
+    getValue: () => string;
+    getHTML: () => string;
+    renderPreview: (element: HTMLDivElement) => Promise<void>;
 }
-*/
-
-type ViewMode = 'ir' | 'wysiwyg' | 'sv';
 
 const route = useRoute();
 const router = useRouter();
 const isWide = ref(false);
-const viewMode = ref<ViewMode>('wysiwyg');
+const editorMode = ref<EditorMode>('rich');
 const previewVisible = ref(false);
 const previewRef = ref<HTMLDivElement | null>(null);
-const vditorCdn = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/vditor`;
+const tiptapEditorRef = ref<RichTextEditorInstance | null>(null);
+const markdownEditorRef = ref<MarkdownEditorInstance | null>(null);
 const articleId = ref('');
 const articleContent = reactive<ArticleSaveModel>({
     userId: 0,
     isDraft: true,
-    sources: []
+    articleOriginalContent: ''
 });
 
-const viewModes: { label: string; value: ViewMode }[] = [
-    { label: '即时渲染', value: 'ir' },
-    { label: '所见即所得', value: 'wysiwyg' },
-    { label: '分屏预览', value: 'sv' }
-];
+// 记录最近一次保存/加载时的内容快照，用于判断是否存在未保存的修改
+const savedTitle = ref('');
+const savedContent = ref('');
+const isDirty = computed(() =>
+    (articleContent.title ?? '') !== savedTitle.value
+    || (articleContent.articleTrueContent ?? '') !== savedContent.value
+);
+
+function markSaved() {
+    savedTitle.value = articleContent.title ?? '';
+    savedContent.value = articleContent.articleTrueContent ?? '';
+}
+
 onMounted(() => {
     const user = stateStroge.get<User>("User");
     const articleIdVal = route.params.articleId as string
@@ -209,41 +222,108 @@ onMounted(() => {
     }
     else
         getArticleContent();
+    window.addEventListener('beforeunload', handleBeforeUnload);
 })
 
-function saveArticle(model: ArticleSaveModel, init: boolean) {
+onBeforeUnmount(() => {
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+});
+
+// 刷新/关闭浏览器标签页时由浏览器弹出原生确认框
+function handleBeforeUnload(event?: BeforeUnloadEvent) {
+    if (!isDirty.value) {
+        return;
+    }
+    event?.preventDefault();
+}
+
+// 路由离开（返回、首页等）前确认是否保存未提交的内容
+onBeforeRouteLeave(async (to, from) => {
+    if (to.fullPath != from.fullPath)
+        sessionStorage.removeItem("CurrentArticleId")
+    handleBeforeUnload(undefined);
+    if (!isDirty.value) {
+        return true;
+    }
+    try {
+        await ElMessageBox.confirm('当前文章有未保存的修改，是否保存后离开？', '未保存的修改', {
+            confirmButtonText: '保存',
+            cancelButtonText: '不保存',
+            distinguishCancelAndClose: true,
+            closeOnClickModal: false,
+            closeOnPressEscape: false,
+            type: 'warning'
+        });
+    } catch (action) {
+        // 只有明确选择“不保存”才放行，关闭弹窗视为取消离开
+        return action === 'cancel';
+    }
+    return saveArticle(articleContent, false);
+});
+
+function syncEditorContent() {
+    if (editorMode.value === 'rich' && tiptapEditorRef.value) {
+        articleContent.articleTrueContent = tiptapEditorRef.value.getMarkdown();
+        return;
+    }
+    if (editorMode.value === 'markdown' && markdownEditorRef.value) {
+        articleContent.articleTrueContent = markdownEditorRef.value.getValue();
+    }
+}
+
+function toggleEditorMode() {
+    editorMode.value = editorMode.value === 'rich' ? 'markdown' : 'rich';
+}
+
+function saveArticle(model: ArticleSaveModel, init: boolean): Promise<boolean> {
     if (!init) {
-        if (!articleContent.articleTrueContent?.trim().length) {
+        syncEditorContent();
+        if (!model.articleTrueContent?.trim().length) {
             ElMessage.warning("请输入内容");
-            return;
+            return Promise.resolve(false);
+        }
+        if(!model.title?.trim().length)
+        {
+            ElMessage.warning("请输入标题");
+            return Promise.resolve(false);
         }
     }
-    SaveArticle(model)
+    // 非首次保存时携带上次保存的原文，服务端据此比对并删改内嵌资源
+    model.articleOriginalContent = init ? '' : savedContent.value;
+    return SaveArticle(model)
         .then(res => {
             if (res.success) {
                 const successMsg = init ? '已保存为\"未命名\"' : "已保存";
                 ElMessage.success(successMsg);
                 if (!articleId.value.length) {
                     articleId.value = res.data.articleId;
+                    articleContent.articleId = res.data.articleId;
                     sessionStorage.setItem("CurrentArticleId", articleId.value);
                 }
-                if(!articleContent?.content)
-                    articleContent.content = articleContent.content;
+                if (!articleContent?.content)
+                    articleContent.content = res.data.content;
+                markSaved();
+                // 保存成功后更新原文基线，下一次删改才能正确比对
+                articleContent.articleOriginalContent = model.articleTrueContent ?? '';
+                return true;
             }
-            else {
-                if (res.code == 411) {
-                    const timeout = setTimeout(() => {
-                        ElMessage.warning("文章草稿已满五份，请先删除不必要的草稿");
-                        clearTimeout(timeout);
-                    }, 2000);
-                }
-                ElMessage.error(res.message);
+            if (res.code == 411) {
+                const timeout = setTimeout(() => {
+                    ElMessage.warning("文章草稿已满五份，请先删除不必要的草稿");
+                    clearTimeout(timeout);
+                }, 2000);
             }
+            ElMessage.error(res.message);
+            return false;
         })
-        .catch(error => ElNotification.error(error));
+        .catch(error => {
+            ElNotification.error(error);
+            return false;
+        });
 }
 
 function openPreview() {
+    syncEditorContent();
     if (!articleContent.articleTrueContent?.trim().length) {
         ElMessage.warning("请输入内容");
         return;
@@ -255,14 +335,12 @@ async function renderPreview() {
     if (!previewRef.value) {
         return;
     }
-    await Vditor.preview(previewRef.value, articleContent.articleTrueContent ?? '', {
-        mode: 'light',
-        cdn: vditorCdn,
-        lang: 'zh_CN',
-        hljs: { enable: true, style: 'github', lineNumber: true },
-        math: { engine: 'KaTeX' },
-        markdown: { toc: true }
-    });
+    previewRef.value.innerHTML = '';
+    if (editorMode.value === 'rich') {
+        previewRef.value.innerHTML = tiptapEditorRef.value?.getHTML() ?? '';
+        return;
+    }
+    await markdownEditorRef.value?.renderPreview(previewRef.value);
 }
 
 function saveAndClosePreview() {
@@ -277,6 +355,8 @@ function getArticleContent() {
             if (res.success) {
                 Object.assign(articleContent, res.data);
                 articleContent.articleTrueContent = res.data.articleTrueContent || '';
+                articleContent.articleOriginalContent = res.data.articleOriginalContent ?? articleContent.articleTrueContent;
+                markSaved();
             }
             else
                 ElMessage.error(res.message);
@@ -286,6 +366,10 @@ function getArticleContent() {
 }
 
 function uploadSource(file: File) {
+    if (!articleId.value || !articleContent.userId) {
+        ElMessage.warning('文章正在初始化，请稍后再上传图片');
+        return Promise.resolve('');
+    }
     return new Promise<string>((resolve, reject) => {
         UploadFile(file, articleId.value)
             .then(res => {
@@ -294,87 +378,10 @@ function uploadSource(file: File) {
                     resolve('');
                 }
                 else
-                    resolve(res.data);
+                    resolve(getSource(res.data, `Source/${articleContent.userId}`));
             }).catch(error => reject(error))
     });
 }
-/* 自定义工具栏配置先注释掉
-const toolGroups: ToolItem[][] = [
-    [
-        { key: 'undo', label: '撤销', icon: 'RefreshLeft' },
-        { key: 'redo', label: '重做', icon: 'RefreshRight' },
-        { key: 'history', label: '历史', icon: 'Clock' }
-    ],
-    [
-        {
-            key: 'format', label: '格式', glyph: 'H',
-            menu: [
-                { label: '标题 1', value: 'h1' },
-                { label: '标题 2', value: 'h2' },
-                { label: '标题 3', value: 'h3' },
-                { label: '标题 4', value: 'h4' },
-                { label: '正文', value: 'paragraph' }
-            ]
-        },
-        { key: 'bold', label: '加粗', glyph: 'B' },
-        { key: 'color', label: '颜色', glyph: 'A' },
-        { key: 'background', label: '背景', icon: 'Brush' },
-        {
-            key: 'more', label: '其他', icon: 'MoreFilled',
-            menu: [
-                { label: '插入日期', value: 'date' },
-                { label: '插入表情', value: 'emoji' },
-                { label: '清除格式', value: 'clear' }
-            ]
-        }
-    ],
-    [
-        {
-            key: 'list', label: '列表',
-            menu: [
-                { label: '无序列表', value: 'unordered' },
-                { label: '有序列表', value: 'ordered' },
-                { label: '任务列表', value: 'task' }
-            ]
-        },
-        {
-            key: 'align', label: '对齐',
-            menu: [
-                { label: '左对齐', value: 'left' },
-                { label: '居中', value: 'center' },
-                { label: '右对齐', value: 'right' },
-                { label: '两端对齐', value: 'justify' }
-            ]
-        },
-        { key: 'hline', label: '水平线', icon: 'Minus' }
-    ],
-    [
-        { key: 'quote', label: '块引用', glyph: '“' }
-    ],
-    [
-        {
-            key: 'code', label: '代码', glyph: '</>',
-            menu: [
-                { label: '行内代码', value: 'inline' },
-                { label: '代码块', value: 'block' }
-            ]
-        },
-        { key: 'resource', label: '资源绑定' },
-        { key: 'table', label: '表格', icon: 'Grid' }
-    ],
-    [
-        { key: 'image', label: '图像', icon: 'Picture' },
-        { key: 'video', label: '视频', icon: 'VideoCamera' },
-        { key: 'formula', label: '公式', glyph: 'Σ' },
-        { key: 'link', label: '链接', icon: 'Link' }
-    ],
-    [
-        { key: 'template', label: '模版', icon: 'CopyDocument' },
-        { key: 'toc', label: '目录', icon: 'Memo' },
-        { key: 'fullscreen', label: '宽屏', icon: 'FullScreen' }
-    ]
-];
-*/
 
 function goHome() {
     router.push('/index');
@@ -395,191 +402,6 @@ function publishArticle(model: ArticleSaveModel) {
     }
     model.isDraft = false;
 }
-/* 自定义工具栏的编辑命令先注释掉
-function ensureSourceVisible() {
-    if (viewMode.value === 'preview') {
-        viewMode.value = 'split';
-    }
-}
-
-function focusRange(start: number, end: number) {
-    requestAnimationFrame(() => {
-        const textarea = sourceRef.value;
-        if (!textarea) {
-            return;
-        }
-        textarea.focus();
-        textarea.setSelectionRange(start, end);
-    });
-}
-
-function selectionRange(): { start: number; end: number } {
-    const source = markdown.value;
-    return {
-        start: sourceRef.value?.selectionStart ?? source.length,
-        end: sourceRef.value?.selectionEnd ?? source.length
-    };
-}
-
-function replaceSelection(prefix: string, suffix = prefix, placeholder = '') {
-    ensureSourceVisible();
-    const source = markdown.value;
-    const { start, end } = selectionRange();
-    const selected = source.slice(start, end) || placeholder;
-    markdown.value = `${source.slice(0, start)}${prefix}${selected}${suffix}${source.slice(end)}`;
-    focusRange(start + prefix.length, start + prefix.length + selected.length);
-}
-
-function insertBlock(block: string) {
-    ensureSourceVisible();
-    const source = markdown.value;
-    const { start } = selectionRange();
-    const before = source.slice(0, start);
-    const lead = !before ? '' : before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n';
-    const inserted = `${before}${lead}${block}\n`;
-    markdown.value = `${inserted}${source.slice(start)}`;
-    focusRange(inserted.length, inserted.length);
-}
-
-function replaceLines(transform: (line: string, index: number) => string) {
-    ensureSourceVisible();
-    const source = markdown.value;
-    const { start, end } = selectionRange();
-    const blockStart = start > 0 ? source.lastIndexOf('\n', start - 1) + 1 : 0;
-    const nextBreak = source.indexOf('\n', end);
-    const blockEnd = nextBreak === -1 ? source.length : nextBreak;
-    const nextBlock = source.slice(blockStart, blockEnd).split('\n').map(transform).join('\n');
-    markdown.value = `${source.slice(0, blockStart)}${nextBlock}${source.slice(blockEnd)}`;
-    focusRange(blockStart, blockStart + nextBlock.length);
-}
-
-function applyHeading(level: number) {
-    replaceLines(line => {
-        const indent = line.match(/^[ \t]+/)?.[0] ?? '';
-        const body = line.slice(indent.length).replace(/^#{1,6}\s+/, '');
-        if (!body) {
-            return line;
-        }
-        return level === 0 ? `${indent}${body}` : `${indent}${'#'.repeat(level)} ${body}`;
-    });
-}
-
-function applyList(kind: 'unordered' | 'ordered' | 'task') {
-    replaceLines((line, index) => {
-        const indent = line.match(/^[ \t]+/)?.[0] ?? '';
-        const body = line.slice(indent.length).replace(/^(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/, '');
-        if (!body) {
-            return line;
-        }
-        if (kind === 'ordered') {
-            return `${indent}${index + 1}. ${body}`;
-        }
-        if (kind === 'task') {
-            return `${indent}- [ ] ${body}`;
-        }
-        return `${indent}- ${body}`;
-    });
-}
-
-function applyQuote() {
-    replaceLines(line => {
-        if (!line.trim()) {
-            return line;
-        }
-        return line.trimStart().startsWith('>') ? line.replace(/^(\s*)>\s?/, '$1') : line.replace(/^(\s*)/, '$1> ');
-    });
-}
-
-function insertCodeBlock() {
-    ensureSourceVisible();
-    const source = markdown.value;
-    const { start, end } = selectionRange();
-    const before = source.slice(0, start);
-    const lead = !before ? '' : before.endsWith('\n') ? '' : '\n';
-    const selected = source.slice(start, end);
-    const block = `${lead}\`\`\`\n${selected}\n\`\`\`\n`;
-    markdown.value = `${before}${block}${source.slice(end)}`;
-    const caretStart = start + lead.length + 4;
-    focusRange(caretStart, caretStart + selected.length);
-}
-
-function insertText(text: string) {
-    replaceSelection('', '', text);
-}
-
-function clearFormatting() {
-    ensureSourceVisible();
-    const source = markdown.value;
-    const { start, end } = selectionRange();
-    if (start === end) {
-        return;
-    }
-    const cleaned = source
-        .slice(start, end)
-        .replace(/\*\*|__|~~|`/g, '')
-        .replace(/^#{1,6}\s+/gm, '')
-        .replace(/^\s*>\s?/gm, '');
-    markdown.value = `${source.slice(0, start)}${cleaned}${source.slice(end)}`;
-    focusRange(start, start + cleaned.length);
-}
-
-function handleCommand(tool: string, command: string) {
-    switch (tool) {
-        case 'format':
-            applyHeading(command === 'paragraph' ? 0 : Number(command.slice(1)));
-            return;
-        case 'list':
-            applyList(command as 'unordered' | 'ordered' | 'task');
-            return;
-        case 'code':
-            if (command === 'inline') {
-                replaceSelection('`', '`', '代码');
-            } else {
-                insertCodeBlock();
-            }
-            return;
-        case 'more':
-            if (command === 'date') {
-                insertText(new Date().toLocaleDateString('zh-CN'));
-            } else if (command === 'emoji') {
-                insertText('😀');
-            } else {
-                clearFormatting();
-            }
-            return;
-        default:
-            console.log(`[article-editor] ${tool}: ${command}`);
-    }
-}
-
-function handleTool(tool: string) {
-    switch (tool) {
-        case 'fullscreen':
-            isWide.value = !isWide.value;
-            return;
-        case 'bold':
-            replaceSelection('**', '**', '加粗文字');
-            return;
-        case 'quote':
-            applyQuote();
-            return;
-        case 'hline':
-            insertBlock('---');
-            return;
-        case 'table':
-            insertBlock('| 列 1 | 列 2 |\n| --- | --- |\n| 内容 | 内容 |');
-            return;
-        case 'link':
-            replaceSelection('[', '](https://example.com)', '链接文字');
-            return;
-        case 'image':
-            replaceSelection('![', '](https://example.com/image.png)', '图片描述');
-            return;
-        default:
-            console.log(`[article-editor] tool: ${tool}`);
-    }
-}
-*/
 </script>
 
 <style scoped>
@@ -662,220 +484,6 @@ function handleTool(tool: string) {
     color: #4e5969;
 }
 
-/* 自定义工具栏样式先注释掉
-.editor-toolbar {
-    flex: none;
-    overflow-x: auto;
-    overflow-y: hidden;
-    border-bottom: 1px solid #ebedf0;
-    background: #fff;
-    scrollbar-width: none;
-}
-
-.editor-toolbar::-webkit-scrollbar {
-    display: none;
-}
-
-.toolbar-inner {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: max-content;
-    min-width: 100%;
-    padding: 6px 24px;
-    box-sizing: border-box;
-}
-
-.tool-group {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-}
-
-.tool-dropdown {
-    display: flex;
-}
-
-.tool-divider {
-    flex: none;
-    width: 1px;
-    height: 26px;
-    margin: 0 10px;
-    background: #e5e6eb;
-}
-
-.tool-button {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    width: 66px;
-    height: 62px;
-    padding: 0;
-    border: 0;
-    border-radius: 6px;
-    background: transparent;
-    font: inherit;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.tool-button:hover {
-    background: #f2f3f5;
-}
-
-.tool-button:active {
-    background: #e8eaed;
-}
-
-.tool-icon-wrap {
-    display: flex;
-    align-items: center;
-    gap: 1px;
-    height: 22px;
-    color: #8f959e;
-    transition: color 0.2s;
-}
-
-.tool-button:hover .tool-icon-wrap {
-    color: #1f2329;
-}
-
-.tool-caret {
-    color: #8f959e;
-}
-
-.tool-label {
-    font-size: 12px;
-    line-height: 1;
-    color: #4e5969;
-    white-space: nowrap;
-}
-
-.tool-glyph {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 20px;
-    height: 20px;
-    font-size: 19px;
-    font-weight: 600;
-    line-height: 1;
-}
-
-.glyph-color {
-    position: relative;
-    padding-bottom: 3px;
-}
-
-.glyph-color::after {
-    content: '';
-    position: absolute;
-    right: 1px;
-    bottom: 0;
-    left: 1px;
-    height: 2px;
-    border-radius: 1px;
-    background: currentColor;
-}
-
-.glyph-quote {
-    font-family: Georgia, 'Times New Roman', serif;
-    font-size: 30px;
-    font-weight: 400;
-    transform: translateY(5px);
-}
-
-.glyph-code {
-    font-family: Consolas, 'Courier New', monospace;
-    font-size: 12px;
-    letter-spacing: -0.5px;
-}
-
-.glyph-formula {
-    font-family: Georgia, 'Times New Roman', serif;
-    font-size: 21px;
-}
-
-.glyph-list {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    width: 18px;
-}
-
-.glyph-list i {
-    position: relative;
-    display: block;
-    width: 14px;
-    height: 2px;
-    margin-left: 4px;
-    border-radius: 1px;
-    background: currentColor;
-}
-
-.glyph-list i::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -4px;
-    width: 2px;
-    height: 2px;
-    border-radius: 50%;
-    background: currentColor;
-}
-
-.glyph-align {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    width: 18px;
-}
-
-.glyph-align i {
-    display: block;
-    height: 2px;
-    border-radius: 1px;
-    background: currentColor;
-}
-
-.glyph-align i:nth-child(1),
-.glyph-align i:nth-child(3) {
-    width: 18px;
-}
-
-.glyph-align i:nth-child(2),
-.glyph-align i:nth-child(4) {
-    width: 11px;
-}
-
-.glyph-resource {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-}
-
-.glyph-plus {
-    position: absolute;
-    right: -1px;
-    bottom: -1px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 11px;
-    height: 11px;
-    border-radius: 50%;
-    background: #fff;
-    font-size: 9px;
-    font-weight: 700;
-    line-height: 1;
-}
-*/
-
 .editor-main {
     flex: 1;
     overflow-y: auto;
@@ -916,6 +524,10 @@ function handleTool(tool: string) {
     min-height: calc(100vh - 320px);
 }
 
+.editor-surface {
+    min-width: 0;
+}
+
 .editor-footer {
     display: flex;
     flex-wrap: wrap;
@@ -926,35 +538,34 @@ function handleTool(tool: string) {
     padding: 10px 0 4px;
 }
 
-.view-switch {
-    display: inline-flex;
-    padding: 2px;
-    border-radius: 8px;
-    background: #f2f3f5;
-}
-
-.switch-button {
-    padding: 4px 14px;
-    border: 0;
-    border-radius: 6px;
-    background: transparent;
-    color: #4e5969;
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-    transition: background-color 0.2s, color 0.2s;
-}
-
-.switch-button.is-active {
-    background: #fff;
-    color: #1f2329;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-
 .footer-controls {
     display: inline-flex;
     align-items: center;
     gap: 12px;
+}
+
+.mode-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border: 1px solid #e5e6eb;
+    border-radius: 6px;
+    background: #fff;
+    color: #4e5969;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.mode-button:hover {
+    border-color: #c9cdd4;
+    color: #1f2329;
+}
+
+.mode-icon {
+    color: currentColor;
 }
 
 .width-button {

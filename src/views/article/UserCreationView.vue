@@ -2,7 +2,7 @@
     <div class="user-creation">
         <header class="profile-card">
             <a class="avatar" aria-label="个人主页" @click.prevent>
-                <img v-if="profile.avatar" class="avatar-image" :src="getSource(profile.avatar,'Images')"
+                <img v-if="profile.avatar" class="avatar-image" :src="getSource(profile.avatar, 'Images')"
                     :alt="`${profile.nickname}的头像`" />
                 <span v-else class="avatar-fallback">{{ profile.nickname.slice(0, 1) }}</span>
             </a>
@@ -29,9 +29,9 @@
                 </ul>
 
                 <div class="meta">
-                    <span class="meta-item">加入Blog时间：{{profile.joinTime }}</span>
+                    <span class="meta-item">加入Blog时间：{{ profile.joinTime }}</span>
                 </div>
-                 <div class="meta">
+                <div class="meta">
                     <span class="meta-item">Blog龄：{{ GetAgeWithMonth(new Date(profile.joinTime)) }}</span>
                 </div>
             </div>
@@ -93,13 +93,14 @@
 <script lang="ts" setup>
 import { GetAgeWithMonth } from '../../modules/Common.ts';
 import { Document, EditPen, Search, Setting } from '@element-plus/icons-vue';
-import { ElMessage, ElNotification } from 'element-plus';
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
 import { onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import {
     ArticleStatus,
     ArticleStatusLabels,
     GetUserArticles,
+    RemoveArticle,
     type ArticleListItem,
     type UserArticleQuery,
 } from '../../api/article.ts';
@@ -184,6 +185,8 @@ function switchTab(key: ArticleTab) {
     activeTab.value = key;
     query.value.isDraft = key === 'draft';
     query.value.isDeleted = key === 'recycle';
+    if (query.value.isDeleted)
+        query.value.isDraft = undefined;
     query.value.publishedStatus = undefined;
     query.value.page = 1;
     loadArticles();
@@ -249,8 +252,50 @@ function openArticle(article: ArticleListItem) {
     router.push(`/article/editor/${article.articleId}`);
 }
 
-function handleDeleteArticle(article: ArticleListItem) {
-    ElMessage.warning(`「${article.title || '未命名文章'}」的删除接口尚未接入`);
+async function handleDeleteArticle(article: ArticleListItem) {
+    let trueDelete = false;
+    if (!query.value.isDeleted) {
+        if (article.isDraft && !article.saveWhenInit) {
+            try {
+                await ElMessageBox.confirm(
+                    `请选择如何删除「${article.title || '未命名文章'}」`,
+                    '删除草稿',
+                    {
+                        confirmButtonText: '放入回收站',
+                        cancelButtonText: '永久删除',
+                        distinguishCancelAndClose: true,
+                        closeOnClickModal: false,
+                        type: 'warning',
+                    },
+                );
+            } catch (action) {
+                if (action === 'cancel') {
+                    trueDelete = true;
+                } else if (action !== 'close') {
+                    ElNotification.error(String(action));
+                    return;
+                } else {
+                    return;
+                }
+            }
+        }
+        else trueDelete = true;
+    }
+    else trueDelete = true;
+    loading.value = true;
+    try {
+        const res = await RemoveArticle(article.articleId, trueDelete);
+        if (res.success) {
+            ElMessage.success(res.message);
+            loadArticles();
+        } else {
+            ElMessage.error(res.message);
+        }
+    } catch (error: any) {
+        ElNotification.error(error);
+    } finally {
+        loading.value = false;
+    }
 }
 
 function writeArticle() {
