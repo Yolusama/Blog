@@ -214,7 +214,7 @@ const alignmentButtons: { value: ImageAlign; label: string; path: string }[] = [
 
 const editor = useEditor({
     content: props.modelValue,
-    contentType: 'markdown',
+    contentType: 'html',
     extensions: [
         StarterKit.configure({
             link: {
@@ -269,9 +269,9 @@ const editor = useEditor({
         },
     },
     onUpdate: ({ editor: instance }) => {
-        const markdown = instance.getMarkdown();
-        if (markdown !== props.modelValue) {
-            emit('update:modelValue', markdown);
+        const html = instance.getHTML();
+        if (html !== props.modelValue) {
+            emit('update:modelValue', html);
         }
     },
 });
@@ -302,10 +302,10 @@ watch(
             return;
         }
         const next = value ?? '';
-        if (next === instance.getMarkdown()) {
+        if (next === instance.getHTML()) {
             return;
         }
-        instance.commands.setContent(next, { contentType: 'markdown', emitUpdate: false });
+        instance.commands.setContent(next, { contentType: 'html', emitUpdate: false });
     },
 );
 
@@ -480,8 +480,8 @@ function handleTableCommand(command: string) {
 }
 
 defineExpose({
-    getMarkdown: () => editor.value?.getMarkdown() ?? props.modelValue,
-    getHTML: () => editor.value?.getHTML() ?? '',
+    getHTML: () => editor.value?.getHTML() ?? props.modelValue ?? '',
+    getMarkdown: () => editor.value?.getMarkdown() ?? props.modelValue ?? '',
     isEmpty: () => editor.value?.isEmpty ?? true,
     focus: () => editor.value?.commands.focus(),
 });

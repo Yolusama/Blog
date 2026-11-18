@@ -168,12 +168,10 @@ type EditorMode = 'rich' | 'markdown';
 
 interface RichTextEditorInstance {
     getHTML: () => string;
-    getMarkdown: () => string;
     isEmpty: () => boolean;
 }
 
 interface MarkdownEditorInstance {
-    getValue: () => string;
     getHTML: () => string;
     renderPreview: (element: HTMLDivElement) => Promise<void>;
 }
@@ -263,12 +261,24 @@ onBeforeRouteLeave(async (to, from) => {
 
 function syncEditorContent() {
     if (editorMode.value === 'rich' && tiptapEditorRef.value) {
-        articleContent.articleTrueContent = tiptapEditorRef.value.getMarkdown();
+        articleContent.articleTrueContent = tiptapEditorRef.value.getHTML();
         return;
     }
     if (editorMode.value === 'markdown' && markdownEditorRef.value) {
-        articleContent.articleTrueContent = markdownEditorRef.value.getValue();
+        articleContent.articleTrueContent = markdownEditorRef.value.getHTML();
     }
+}
+
+// 内容以 HTML 保存，需要忽略空段落、换行等空壳标签后再判断是否为空
+const CONTENT_MEDIA_PATTERN = /<(img|video|audio|iframe|table|hr)\b/i;
+
+function hasContent(html?: string) {
+    const value = (html ?? '').trim();
+    if (!value) {
+        return false;
+    }
+    return CONTENT_MEDIA_PATTERN.test(value)
+        || value.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0;
 }
 
 function toggleEditorMode() {
@@ -278,7 +288,7 @@ function toggleEditorMode() {
 function saveArticle(model: ArticleSaveModel, init: boolean): Promise<boolean> {
     if (!init) {
         syncEditorContent();
-        if (!model.articleTrueContent?.trim().length) {
+        if (!hasContent(model.articleTrueContent)) {
             ElMessage.warning("请输入内容");
             return Promise.resolve(false);
         }
@@ -324,7 +334,7 @@ function saveArticle(model: ArticleSaveModel, init: boolean): Promise<boolean> {
 
 function openPreview() {
     syncEditorContent();
-    if (!articleContent.articleTrueContent?.trim().length) {
+    if (!hasContent(articleContent.articleTrueContent)) {
         ElMessage.warning("请输入内容");
         return;
     }
@@ -396,7 +406,7 @@ function goBack() {
 }
 
 function publishArticle(model: ArticleSaveModel) {
-    if (!model.articleTrueContent?.trim().length) {
+    if (!hasContent(model.articleTrueContent)) {
         ElMessage.warning("请输入内容");
         return;
     }

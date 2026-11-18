@@ -10,6 +10,7 @@ import Vditor from 'vditor';
 import 'vditor/dist/index.css';
 
 interface VditorProps {
+    /** HTML 内容，Vditor 内部会转成 Markdown 再编辑 */
     modelValue?: string;
     mode?: VditorMode;
     placeholder?: string;
@@ -19,6 +20,16 @@ interface VditorProps {
 
 type VditorMode = 'ir' | 'wysiwyg' | 'sv';
 
+interface LuteInstance {
+    HTML2Md(html: string): string;
+}
+
+interface LuteConstructor {
+    New(): LuteInstance;
+}
+
+type LuteGlobal = Window & { Lute?: LuteConstructor };
+
 const props = withDefaults(
     defineProps<VditorProps>(),
     { modelValue: '', mode: 'ir', placeholder: '', minHeight: 520 }
@@ -27,12 +38,73 @@ const props = withDefaults(
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 
 const cdn = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/vditor`;
+const LUTE_SCRIPT_ID = 'vditorLuteScript';
 const hostRef = ref<HTMLDivElement | null>(null);
 const hostKey = ref(0);
 let vditor: Vditor | null = null;
+let createToken = 0;
+let unmounted = false;
+let lutePromise: Promise<LuteConstructor> | null = null;
 
-function createEditor(value: string) {
+// Vditor 只在创建完成后才异步加载 Lute，提前加载后才能在创建前完成 HTML → Markdown 转译
+function loadLute(): Promise<LuteConstructor> {
+    const loaded = (window as LuteGlobal).Lute;
+    if (loaded) {
+        return Promise.resolve(loaded);
+    }
+    if (lutePromise) {
+        return lutePromise;
+    }
+    lutePromise = new Promise<LuteConstructor>((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = `${cdn}/dist/js/lute/lute.min.js`;
+        script.async = true;
+        script.onload = () => {
+            script.id = LUTE_SCRIPT_ID;
+            const lute = (window as LuteGlobal).Lute;
+            if (lute) {
+                resolve(lute);
+                return;
+            }
+            reject(new Error('Lute 加载失败'));
+        };
+        script.onerror = () => reject(new Error('Lute 加载失败'));
+        document.head.appendChild(script);
+    }).catch(error => {
+        lutePromise = null;
+        throw error;
+    });
+    return lutePromise;
+}
+
+async function htmlToMarkdown(html: string): Promise<string> {
+    if (!html.trim()) {
+        return '';
+    }
+    // 历史草稿已经是 Markdown，直接复用，避免再次转译带来的格式损失
+    if (!/^\s*<(?!\/?(?:https?:|mailto:))/i.test(html)) {
+        return html;
+    }
+    try {
+        const lute = await loadLute();
+        return lute.New().HTML2Md(html);
+    } catch {
+        // Markdown 本身允许内嵌 HTML，转译失败时退回原文
+        return html;
+    }
+}
+
+function getCurrentHTML(): string {
+    return vditor?.getHTML() ?? props.modelValue ?? '';
+}
+
+async function createEditor(html: string) {
     if (!hostRef.value) {
+        return;
+    }
+    const token = ++createToken;
+    const value = await htmlToMarkdown(html);
+    if (unmounted || token !== createToken || !hostRef.value) {
         return;
     }
     vditor = new Vditor(hostRef.value, {
@@ -55,9 +127,10 @@ function createEditor(value: string) {
             markdown: { toc: true },
             actions: []
         },
-        input: (value: string) => {
-            if (value !== props.modelValue) {
-                emit('update:modelValue', value);
+        input: () => {
+            const html = vditor?.getHTML() ?? '';
+            if (html !== props.modelValue) {
+                emit('update:modelValue', html);
             }
         },
         upload: {
@@ -79,10 +152,13 @@ function destroyEditor() {
 }
 
 onMounted(() => {
-    createEditor(props.modelValue)
+    void createEditor(props.modelValue);
 });
 
-onBeforeUnmount(destroyEditor);
+onBeforeUnmount(() => {
+    unmounted = true;
+    destroyEditor();
+});
 
 async function uploadHandler(files: File[])  {
     if (!props.onUpload) return null;
@@ -97,11 +173,21 @@ async function uploadHandler(files: File[])  {
 
 watch(
     () => props.modelValue,
-    value => {
-        if (!vditor || value === vditor.getValue()) {
+    async value => {
+        const instance = vditor;
+        if (!instance) {
             return;
         }
-        vditor.setValue(value);
+        const next = value ?? '';
+        if (next === instance.getHTML()) {
+            return;
+        }
+        const markdown = await htmlToMarkdown(next);
+        // 转译期间内容可能已再次变化或实例已重建，此时丢弃本次同步
+        if (vditor !== instance || next === instance.getHTML()) {
+            return;
+        }
+        instance.setValue(markdown, true);
     }
 );
 
@@ -109,17 +195,18 @@ watch(
 watch(
     () => props.mode,
     async () => {
-        const value = vditor?.getValue() ?? props.modelValue;
+        const html = getCurrentHTML();
         destroyEditor();
         hostKey.value += 1;
         await nextTick();
-        createEditor(value);
+        await createEditor(html);
     }
 );
 
 defineExpose({
-    getValue: () => vditor?.getValue() ?? props.modelValue,
-    getHTML: () => vditor?.getHTML() ?? ''
+    getValue: getCurrentHTML,
+    getHTML: getCurrentHTML,
+    getMarkdown: () => vditor?.getValue() ?? ''
 });
 </script>
 

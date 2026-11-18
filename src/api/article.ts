@@ -6,7 +6,7 @@ export interface ArticleSaveModel {
   content?: string
   abstract?: string;
   articleTrueContent?:string;
-  // 上次保存时的原文，供服务端比对 Markdown 内嵌资源的增删
+  // 上次保存时的原文，供服务端比对 HTML 内嵌资源的增删
   articleOriginalContent?:string;
   userId: number;
   isDraft: boolean;

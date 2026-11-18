@@ -24,6 +24,7 @@ import VditorEditor from '../../components/VditorEditor.vue';
 type MarkdownViewMode = 'ir' | 'wysiwyg' | 'sv';
 
 interface ArticleMarkdownEditorProps {
+    /** HTML 内容 */
     modelValue?: string;
     placeholder?: string;
     minHeight?: number;
@@ -34,6 +35,7 @@ interface ArticleMarkdownEditorProps {
 interface VditorEditorInstance {
     getValue: () => string;
     getHTML: () => string;
+    getMarkdown: () => string;
 }
 
 const props = withDefaults(defineProps<ArticleMarkdownEditorProps>(), {
@@ -44,7 +46,7 @@ const props = withDefaults(defineProps<ArticleMarkdownEditorProps>(), {
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 
-const viewMode = ref<MarkdownViewMode>('wysiwyg');
+const viewMode = ref<MarkdownViewMode>('sv');
 const vditorRef = ref<VditorEditorInstance | null>(null);
 
 const content = computed({
@@ -60,17 +62,18 @@ const viewModes: { label: string; value: MarkdownViewMode }[] = [
 
 const cdn = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/vditor`;
 
-function getValue() {
-    return vditorRef.value?.getValue() ?? props.modelValue ?? '';
-}
-
 function getHTML() {
-    return vditorRef.value?.getHTML() ?? '';
+    return vditorRef.value?.getHTML() ?? props.modelValue ?? '';
 }
 
 async function renderPreview(element: HTMLDivElement) {
     element.innerHTML = '';
-    await Vditor.preview(element, getValue(), {
+    const markdown = vditorRef.value?.getMarkdown() ?? '';
+    if (!markdown.trim()) {
+        element.innerHTML = getHTML();
+        return;
+    }
+    await Vditor.preview(element, markdown, {
         mode: 'light',
         cdn,
         lang: 'zh_CN',
@@ -80,7 +83,7 @@ async function renderPreview(element: HTMLDivElement) {
     });
 }
 
-defineExpose({ getValue, getHTML, renderPreview });
+defineExpose({ getHTML, renderPreview });
 </script>
 
 <style scoped>
