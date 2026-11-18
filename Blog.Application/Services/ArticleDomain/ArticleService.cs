@@ -78,7 +78,7 @@ public class ArticleService(ILogger<ArticleService> logger,
             if (!string.IsNullOrEmpty(model.ArticleTrueContent) && model.ArticleTrueContent != originalContent)
             {
                 var fileName = string.IsNullOrEmpty(article.Content)
-                    ? RandomGenerator.SnowflakeId() + Constants.MarkDownFileExtension
+                    ? RandomGenerator.SnowflakeId() + Constants.HTMLFileExtension
                     : model.Content;
                 article.Content =
                     await articleSourceHandler.StoreArticleContent(fileName, article.AuthorId,

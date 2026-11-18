@@ -15,9 +15,10 @@ public class ArticleSourceHandler(IConfiguration configuration) : IArticleSource
         var path = Path.Combine(configuration[Constants.StaticFilesStorePath],ContentBase, userId.ToString(),fileName);
         var fileInfo = new FileInfo(path);
         fileInfo.CreateIfNotExists();
-        using var stream = fileInfo.OpenWrite();
+        using var stream = new FileStream(fileInfo.FullName,FileMode.Create,FileAccess.Write,FileShare.Read);
         var bytes = Encoding.UTF8.GetBytes(content);
         await stream.WriteAsync(bytes);
+        await stream.FlushAsync();
         return fileInfo.Name;
     }
 
@@ -66,8 +67,9 @@ public class ArticleSourceHandler(IConfiguration configuration) : IArticleSource
             var fileName = guid + extension;
             var fileInfo = new FileInfo(Path.Combine(configuration[Constants.StaticFilesStorePath],Source,userId.ToString(),fileName));
             fileInfo.CreateIfNotExists();
-            using var stream = fileInfo.OpenWrite();
+            using var stream = new FileStream(fileInfo.FullName,FileMode.Create,FileAccess.Write,FileShare.ReadWrite);
             await file.CopyToAsync(stream);
+            await stream.FlushAsync();
             return fileInfo;
         }
         catch (Exception e)
