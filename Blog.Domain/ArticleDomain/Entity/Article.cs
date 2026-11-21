@@ -112,10 +112,10 @@ public class Article : AggregateRoot<string>
         ViewCount++;
     }
 
-    public void WhenUpload()
+    public void SendToBeAudited()
     {
         IsDraft = false;
-        PublishStatus = (int)ArticlePublishStatus.Auditing;
+        PublishStatus = ArticlePublishStatus.Auditing.IntValue();
         Publish();
     }
     

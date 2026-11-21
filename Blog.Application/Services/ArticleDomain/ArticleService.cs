@@ -2,6 +2,7 @@
 using System.Net;
 using Blog.Application.Attributes;
 using Blog.Application.Services.Interfaces.ArticleDomain;
+using Blog.Application.Services.UserDomain.Configuration;
 using Blog.Domain.ArticleDomain.Entity;
 using Blog.Domain.ArticleDomain.DTO;
 using Blog.Domain.ArticleDomain.Services.Interfaces;
@@ -22,6 +23,8 @@ namespace Blog.Application.Services.ArticleDomain;
 public class ArticleService(ILogger<ArticleService> logger,
     IConfiguration configuration,
     IArticleSourceHandler articleSourceHandler,
+    RabbitMQConfig rabbitMqConfig,
+    IMQProducer mqProducer,
     IRepository<Article,string> articleRepository,
     IRepository<ArticleSource,long> articleSourceRepository,
     IRepository<ArticleOptions,long> articleOptionsRepository,
@@ -323,7 +326,10 @@ public class ArticleService(ILogger<ArticleService> logger,
         var article = await articleRepository.All.FirstOrDefaultAsync(a => a.Id == articleId && !a.IsDeleted && a.IsDraft);
         if (article == null)
             throw new ServiceException("文章已不存在");
-        article.WhenUpload();
+        article.SendToBeAudited();
+        //目前无人审核，直接使用MQ异步刷新状态
+        await mqProducer.Produce(MQActions.ArticleQueue,rabbitMqConfig.ClientProvideName,
+            MQActions.ArticleAuditAction,new {ArticleId = articleId});
     }
 
     public async Task<long> WriteComment(ArticleCommentDTO commentDto)

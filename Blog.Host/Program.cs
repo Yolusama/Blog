@@ -6,8 +6,6 @@ using Blog.Middlewares;
 using Blog.Services.Filters;
 using Blog.Shared;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.FileProviders;
-using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +31,7 @@ builder.Services.AddArticleSourceHandler();
 builder.Services.AddRedis(builder.Configuration
     .GetConnectionString(Constants.Redis)
 );
+await builder.Services.AddRabbitMQ(builder.Configuration);
 
 builder.Services.AddCors(options =>
 {

@@ -11,6 +11,7 @@ public static class Constants
     public const string FileResponseHeader = "application/octet-stream";
     public const string DefaultUserAvatar = "default-user.png";
     public const string DefaultArticleCover = "default-cover.jpg";
+    public const string RabbitMQConfigKey = "RabbitMQConfig";
     public const string MarkDownFileExtension = ".md";
     public const string HTMLFileExtension = ".html";
     public const int ChannelCapacity = 1024;
