@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using FreeSql;
+using Newtonsoft.Json;
 
 namespace Blog.MQ.Functional;
 
@@ -105,6 +106,31 @@ public static class Expansions
     public static IEnumerable<T2> DeepCopy<T1, T2>(this IEnumerable<T1> src,Action<T1,T2>? afterCopy = null)
     {
         return src.Select(x => x.DeepCopy(default,afterCopy));
+    }
+
+    public static int IntValue(this Enum @enum)
+    {
+        return Convert.ToInt32(@enum);
+    }
+
+    public static async Task<bool> TransactionAsync(this IFreeSql orm,Func<IRepositoryUnitOfWork,Task> action,Action<Exception>?
+        errorAction = null)
+    {
+        using var worker = orm.CreateUnitOfWork();
+        try
+        {
+            await action.Invoke(worker);
+            worker.Commit();
+            return true;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            worker.Rollback();
+            if(errorAction!=null)
+                errorAction.Invoke(e);
+            return false;
+        }
     }
     
     private static bool IsBaseType(Type type)

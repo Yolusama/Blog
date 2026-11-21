@@ -54,7 +54,7 @@ public class MQConsumer(ILogger<MQConsumer> logger,
                     : typeName)
                 : controllerAttr.QueueName;
             var actions = controllerType.GetMethods()
-                .Where(m => m.GetCustomAttribute<NoneMQAction>() == null);
+                .Where(m => m.GetCustomAttribute<MQActionAttribute>() != null);
             foreach (var action in actions)
             {
                 var actionAttr = action.GetCustomAttribute<MQActionAttribute>();
@@ -125,18 +125,19 @@ public class MQConsumer(ILogger<MQConsumer> logger,
             {
                 var type = method.DeclaringType;
                 var controller = HandleDependencies(type);
+                var bodyStr = Encoding.UTF8.GetString(ea.Body.ToArray());
                 var controllerBase = (MQControllerBase)controller;
                 controllerBase.Context = new MQRequestContext
                 {
                     Route = ea.RoutingKey,
                     Exchange = ea.Exchange,
-                    Body = Encoding.UTF8.GetString(ea.Body.ToArray())
+                    Body = bodyStr
                 };
                 var parameters = method.GetParameters();
                 var values = new  object[parameters.Length];
                 if (values.Length > 0)
                 {
-                    var body = (JObject)JsonConvert.DeserializeObject(controllerBase.Context.Body, _serializerSettings);
+                    var body = (JObject)JsonConvert.DeserializeObject(bodyStr, _serializerSettings);
                     for (int i = 0; i < parameters.Length; i++)
                     {
                         var jToken = body[parameters[i].Name];

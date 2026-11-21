@@ -2,7 +2,7 @@
 
 namespace Blog.MQ.Core;
 
-public class MQControllerBase
+public abstract class MQControllerBase
 {
     public MQRequestContext Context { get; set; }
 }

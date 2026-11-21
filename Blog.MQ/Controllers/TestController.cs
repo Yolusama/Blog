@@ -9,8 +9,6 @@ public class TestController(ILogger<TestController> logger) : MQControllerBase
     [MQAction]
     public void Index(string message)
     {
-        int b = 0;
-        int a = 1 / b;
         logger.LogInformation(message);
         Console.WriteLine($"收到消息：{message}");
     }
