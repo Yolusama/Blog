@@ -1,0 +1,1 @@
+Blog项目队列消费者处理方案，类Http Api模式处理，消息队列框架：RabbitMQ
