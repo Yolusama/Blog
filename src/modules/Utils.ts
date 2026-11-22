@@ -52,3 +52,11 @@ export function frameAnimate(func:Function){
     }
     execution();
 }
+
+export function delayToRun(func:Function,timeout:number)
+{
+    const timer = setTimeout(()=>{
+        func();
+        clearTimeout(timer);
+    },timeout);
+}

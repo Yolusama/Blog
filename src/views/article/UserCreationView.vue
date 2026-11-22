@@ -56,7 +56,7 @@
             </nav>
 
             <div class="article-filters">
-                <el-select v-model="query.publishedStatus" class="filter-select" placeholder="全部状态" clearable
+                <el-select v-model="query.publishStatus" class="filter-select" placeholder="全部状态" clearable
                     :disabled="activeTab !== 'article'">
                     <el-option v-for="option in statusOptions" :key="option.value" :label="option.label"
                         :value="option.value" />
@@ -187,7 +187,7 @@ function switchTab(key: ArticleTab) {
     query.value.isDeleted = key === 'recycle';
     if (query.value.isDeleted)
         query.value.isDraft = undefined;
-    query.value.publishedStatus = undefined;
+    query.value.publishStatus = undefined;
     query.value.page = 1;
     loadArticles();
 }
@@ -198,7 +198,7 @@ function searchArticles() {
 }
 
 function resetFilters() {
-    query.value.publishedStatus = undefined;
+    query.value.publishStatus = undefined;
     query.value.startDate = undefined;
     query.value.endDate = undefined;
     query.value.search = undefined;

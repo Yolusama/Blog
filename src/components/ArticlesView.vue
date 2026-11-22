@@ -1,39 +1,48 @@
 <template>
-    <div class="article-views" :style="{ maxHeight: maxHeightValue }">
+    <div class="article-views" :style="{ height: heightValue }">
         <div ref="scrollRef" class="article-scroll" @scroll.passive="handleScroll">
             <ul v-if="articles.data.length" class="article-list">
                 <li v-for="article in articles.data" :key="article.articleId" class="article-item" tabindex="0"
-                    @click="handleArticleClick(article)" @keydown.enter="handleItemKeydown($event, article)">
-                    <div class="article-author">
-                        <el-image :src="getSource(article.authorAvatar, 'Images')" class="author-avatar"></el-image>
-                        <span class="author-name">{{ article.authorName || '匿名用户' }}</span>
+                    :class="{ 'has-actions': withUserCreation }" @click="handleArticleClick(article)"
+                    @keydown.enter="handleItemKeydown($event, article)">
+                    <h2 class="article-title">{{ article.title || '未命名文章' }}</h2>
+
+                    <div v-if="article.cover || article.abstract" class="article-summary">
+                        <el-image v-if="article.cover" :src="resolveCover(article.cover)" fit="cover"
+                            class="article-cover" alt="文章封面" />
+                        <p v-if="article.abstract" class="article-abstract">{{ article.abstract }}</p>
                     </div>
 
-                    <h2 class="article-title">{{ article.title || '未命名文章' }}</h2>
-                    <p v-if="article.abstract" class="article-abstract">{{ article.abstract }}</p>
-
-                    <div class="article-meta" v-if="!article.isDraft">
-                        <span class="meta-item">
-                            <svg class="meta-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M12 5.5c-4.6 0-8.5 4-8.5 6.5s3.9 6.5 8.5 6.5 8.5-4 8.5-6.5-3.9-6.5-8.5-6.5z" />
-                                <circle cx="12" cy="12" r="2.8" />
-                            </svg>
-                            阅读 {{ formatCount(article.viewCount) }}
-                        </span>
-                        <span class="meta-item">
-                            <svg class="meta-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M7 10.5V19H4.6a1.6 1.6 0 0 1-1.6-1.6v-5.3A1.6 1.6 0 0 1 4.6 10.5H7z" />
-                                <path
-                                    d="M7 10.5l4.1-6.2a1.2 1.2 0 0 1 2.1.3l.6 1.9a3 3 0 0 1-.2 2.4l-.9 1.6h6a2 2 0 0 1 2 2.3l-1 5a2 2 0 0 1-2 1.7H7" />
-                            </svg>
-                            赞 {{ formatCount(article.likeCount) }}
-                        </span>
-                        <span class="meta-item">
-                            <svg class="meta-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M6.8 3.8h10.4a1 1 0 0 1 1 1v15.4l-6.2-3.9-6.2 3.9V4.8a1 1 0 0 1 1-1z" />
-                            </svg>
-                            收藏 {{ formatCount(article.collectCount) }}
-                        </span>
+                    <div class="article-meta">
+                        <div class="article-author">
+                            <el-image :src="getSource(article.authorAvatar, 'Images')" class="author-avatar"></el-image>
+                            <span class="author-name">{{ article.authorName || '匿名用户' }}</span>
+                        </div>
+                        <span v-if="article.createTime" class="meta-item meta-time"
+                            :title="`发布于 ${formatTime(article.createTime)}`">{{ formatTime(article.createTime) }}</span>
+                        <div v-if="!article.isDraft" class="article-stats">
+                            <span class="meta-item" title="阅读">
+                                <svg class="meta-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M12 5.5c-4.6 0-8.5 4-8.5 6.5s3.9 6.5 8.5 6.5 8.5-4 8.5-6.5-3.9-6.5-8.5-6.5z" />
+                                    <circle cx="12" cy="12" r="2.8" />
+                                </svg>
+                                {{ formatCount(article.viewCount) }}
+                            </span>
+                            <span class="meta-item" title="点赞">
+                                <svg class="meta-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M7 10.5V19H4.6a1.6 1.6 0 0 1-1.6-1.6v-5.3A1.6 1.6 0 0 1 4.6 10.5H7z" />
+                                    <path
+                                        d="M7 10.5l4.1-6.2a1.2 1.2 0 0 1 2.1.3l.6 1.9a3 3 0 0 1-.2 2.4l-.9 1.6h6a2 2 0 0 1 2 2.3l-1 5a2 2 0 0 1-2 1.7H7" />
+                                </svg>
+                                {{ formatCount(article.likeCount) }}
+                            </span>
+                            <span class="meta-item" title="收藏">
+                                <svg class="meta-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M6.8 3.8h10.4a1 1 0 0 1 1 1v15.4l-6.2-3.9-6.2 3.9V4.8a1 1 0 0 1 1-1z" />
+                                </svg>
+                                {{ formatCount(article.collectCount) }}
+                            </span>
+                        </div>
                     </div>
                     <el-button v-if="withUserCreation" class="delete-button" link type="danger" circle
                         aria-label="删除文章" title="删除文章" @click.stop="handleDelete(article)">
@@ -81,8 +90,8 @@ import { getSource, type Pagination } from '../modules/Request.ts';
 
 /**
  * 文章列表：articles 为外部数据源（Pagination<T>），query 为查询条件；
- * usePagination 为 true 时使用分页器，否则滚动到底部时通过 change 事件请求下一页并追加数据；
- * withUserCreation 为 true 时展示编辑/删除操作，maxHeight 控制列表容器最大高度。
+ * usePagination 为 true 时使用分页器，否则滚动到底部时通过 change 事件请求下一页并追加数据，
+ * 筛选条件变化时重置为第一页；withUserCreation 为 true 时展示编辑/删除操作，height 控制列表容器高度。
  */
 const props = withDefaults(defineProps<{
     articles: Pagination<ArticleListItem>;
@@ -90,12 +99,12 @@ const props = withDefaults(defineProps<{
     usePagination?: boolean;
     loading?: boolean;
     withUserCreation?: boolean;
-    maxHeight?: string | number;
+    height?: string | number;
 }>(), {
     usePagination: true,
     loading: false,
     withUserCreation: false,
-    maxHeight: '520px',
+    height: '520px',
 });
 
 const emit = defineEmits<{
@@ -112,8 +121,8 @@ const reachEndVisible = ref(false);
 let reachEndTimer: ReturnType<typeof setTimeout> | undefined;
 let lastRequestedPage = 0;
 
-const maxHeightValue = computed(() =>
-    typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : props.maxHeight,
+const heightValue = computed(() =>
+    typeof props.height === 'number' ? `${props.height}px` : props.height,
 );
 
 const hasMore = computed(() => props.articles.data.length < props.articles.total);
@@ -122,16 +131,38 @@ const queryKey = computed(() => [
     props.query.userId,
     props.query.isDraft,
     props.query.isDeleted,
-    props.query.publishedStatus ?? '',
+    props.query.publishStatus ?? '',
     props.query.startDate ?? '',
     props.query.endDate ?? '',
     props.query.search ?? '',
 ].join('|'));
 
 watch(queryKey, () => {
+    // 筛选条件变化：清空翻页进度、回到顶部并从第一页重新加载，
+    // 避免新查询的数据被追加到旧列表后面
     lastRequestedPage = 0;
     reachEndVisible.value = false;
+    scrollToTop();
+    if (!props.usePagination) {
+        emitQuery({ ...props.query, page: 1 });
+    }
 });
+
+// 跟随父组件实际加载到的页码；父组件重置列表（回到第一页）时同步归零
+watch(
+    [() => props.articles, () => props.articles.data.length],
+    ([articles]) => {
+        const length = articles.data.length;
+        if (length === 0) {
+            lastRequestedPage = 0;
+            return;
+        }
+        lastRequestedPage = articles.page > 1
+            ? articles.page
+            : Math.max(1, Math.ceil(length / (props.query.pageSize || 1)));
+    },
+    { immediate: true },
+);
 
 watch(() => props.articles.data.length, async () => {
     await nextTick();
@@ -164,8 +195,8 @@ function loadNextPage() {
         showReachEnd();
         return;
     }
-    const nextPage = Math.floor(props.articles.data.length / props.query.pageSize) + 1;
-    if (nextPage <= lastRequestedPage) return;
+    // 基于已记录的页码递增，避免用 data.length 计算时重复请求同一页
+    const nextPage = lastRequestedPage + 1;
     lastRequestedPage = nextPage;
     emitQuery({ ...props.query, page: nextPage });
 }
@@ -213,6 +244,21 @@ function formatCount(value?: number) {
     return `${count}`;
 }
 
+function formatTime(value?: string | Date) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const pad = (num: number) => String(num).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function resolveCover(cover?: string) {
+    const value = (cover ?? '').trim();
+    if (!value) return '';
+    if (/^(https?:|data:|blob:)/i.test(value) || value.startsWith('/')) return value;
+    return getSource(value, 'Images');
+}
+
 defineExpose({ scrollToTop });
 </script>
 
@@ -221,6 +267,7 @@ defineExpose({ scrollToTop });
     display: flex;
     flex-direction: column;
     min-height: 0;
+    text-align: left;
 }
 
 .article-scroll {
@@ -271,6 +318,21 @@ defineExpose({ scrollToTop });
     color: #55575c;
 }
 
+.article-summary {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.article-cover {
+    flex: none;
+    width: 72px;
+    height: 72px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #f2f3f5;
+}
+
 .author-avatar {
     display: block;
     width: 26px;
@@ -296,7 +358,7 @@ defineExpose({ scrollToTop });
 }
 
 .article-title {
-    margin: 10px 0 6px;
+    margin: 0 0 10px;
     font-size: 21px;
     line-height: 1.4;
     font-weight: 600;
@@ -309,23 +371,41 @@ defineExpose({ scrollToTop });
     color: #fc5531;
 }
 
+.article-item.has-actions .article-title {
+    padding-right: 32px;
+}
+
 .article-abstract {
+    flex: 1 1 auto;
+    min-width: 0;
     margin: 0;
     overflow: hidden;
     font-size: 15px;
-    line-height: 1.5;
+    line-height: 1.6;
     color: #8a8f99;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
 }
 
 .article-meta {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 24px;
-    margin-top: 12px;
+    gap: 6px 20px;
+    margin-top: 14px;
     font-size: 14px;
+    color: #8a8f99;
+}
+
+.article-stats {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.meta-time {
     color: #8a8f99;
 }
 

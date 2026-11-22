@@ -5,6 +5,10 @@ export interface ArticleSaveModel {
   title?: string;
   content?: string
   abstract?: string;
+  // 文章封面地址，为空时使用默认封面
+  cover?: string;
+  // 创作声明编号，对应 CreationDecalrations 中的 value
+  creationDeclaration?: string;
   articleTrueContent?:string;
   // 上次保存时的原文，供服务端比对 HTML 内嵌资源的增删
   articleOriginalContent?:string;
@@ -16,7 +20,8 @@ export const ArticleStatus = {
   Published: 1,
   Auditing: 2,
   Audited: 3,
-  NotPassed: 4
+  NotPassed: 4,
+  Editing:5
 } as const;
 
 export type ArticleStatus = (typeof ArticleStatus)[keyof typeof ArticleStatus];
@@ -25,7 +30,8 @@ export const ArticleStatusLabels: Record<ArticleStatus, string> = {
   [ArticleStatus.Published]: '已发布',
   [ArticleStatus.Auditing]: '审核中',
   [ArticleStatus.Audited]: '已审核',
-  [ArticleStatus.NotPassed]: '未通过'
+  [ArticleStatus.NotPassed]: '未通过',
+  [ArticleStatus.Editing] : "编辑中"
 }
 
 export interface ArticleListItem {
@@ -43,13 +49,15 @@ export interface ArticleListItem {
   likeCount: number;
   collectCount: number;
   saveWhenInit:boolean;
+  creationDeclaration?:string;
+  cover?:string;
 }
 
 export interface UserArticleQuery extends BasePageQuery
 {
    userId:number,
    isDraft?:boolean,
-   publishedStatus?:ArticleStatus,
+   publishStatus?:ArticleStatus,
    startDate?:string,
    endDate?:string,
    isDeleted?:boolean,
@@ -78,4 +86,9 @@ export function RemoveArticle(articleId:string,trueDelete?:boolean)
   return request.delete(`/api/Article/RemoveArticle/${articleId}`,{
     params:{trueDelete:doTrueDelete}
   });
+}
+
+export function PublishArticle(articleId:string)
+{
+  return request.post(`/api/Article/PublishArticle/${articleId}`);
 }

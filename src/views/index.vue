@@ -64,8 +64,8 @@
             <section class="home-articles" aria-label="文章列表">
                 <h1 class="section-title">文章列表</h1>
                 <articles-view v-model:query="articleQuery" :articles="articles" :loading="articlesLoading"
-                    max-height="calc(100vh - 190px)" @change="loadArticles" @create="createArticle" :withUserCreation="false"
-                    @article-click="openArticle" />
+                    height="calc(100vh - 190px)" @change="loadArticles" @create="createArticle"
+                    :withUserCreation="false" @article-click="openArticle" />
             </section>
             <aside class="home-sidebar">
                 <ArticleRanking />
@@ -146,25 +146,37 @@ function handleMenuSelect(key: string) {
         Route.open(menu.path);
 }
 
+let articleRequestId = 0;
+
 async function loadArticles(query = articleQuery.value) {
     articleQuery.value = query;
+    const requestId = ++articleRequestId;
     articlesLoading.value = true;
     try {
         const result = await GetRecentArticles({ ...query });
+        // 丢弃过期请求的响应，避免旧筛选条件的数据混进当前列表
+        if (requestId !== articleRequestId) return;
         if (!result.success) {
             ElMessage.error(result.message);
             return;
         }
-        articles.value = result.data ?? {
+        const data = result.data ?? {
             page: query.page,
             pageSize: query.pageSize,
             total: 0,
             data: [],
         };
+        // 第一页替换列表（筛选后清空旧数据），后续页追加，实现无限滚动
+        articles.value = query.page > 1
+            ? { ...data, page: query.page, data: [...articles.value.data, ...(data.data ?? [])] }
+            : data;
     } catch (error) {
+        if (requestId !== articleRequestId) return;
         ElMessage.error(error instanceof Error ? error.message : '文章加载失败');
     } finally {
-        articlesLoading.value = false;
+        if (requestId === articleRequestId) {
+            articlesLoading.value = false;
+        }
     }
 }
 
@@ -195,6 +207,7 @@ async function getRemoteContent(query: string) {
 #main {
     padding: 10px 20px;
     border-bottom: 1px solid var(--border);
+    text-align: left;
 }
 
 .header {
@@ -208,7 +221,7 @@ async function getRemoteContent(query: string) {
     gap: 24px;
     width: 100%;
     max-width: 1440px;
-    margin: 24px auto 0;
+    margin: 24px 0 0;
 }
 
 .home-articles {
