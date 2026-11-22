@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
+using Blog.Application.Attributes;
 using Blog.Infrastructure;
 using Blog.Shared;
 using Blog.Shared.Exceptions;
@@ -115,12 +116,28 @@ public class ProjectAuditLogMiddleware(
             return false;
 
         // 兜底排除静态资源（配置项 StaticFiles:RequestPath）
-        var staticRequestPath = configuration["StaticFiles:RequestPath"];
+        var staticRequestPath = configuration[Constants.StaticFilesRequestPath];
         if (!string.IsNullOrWhiteSpace(staticRequestPath)
             && path.StartsWithSegments(staticRequestPath, StringComparison.OrdinalIgnoreCase))
             return false;
 
+        // Action 或所在 Controller 标记了 NoAuditLog 时跳过
+        if (IsAuditDisabled(action))
+        {
+            action = null;
+            return false;
+        }
+
         return true;
+    }
+
+    /// <summary>
+    /// Action 或 Controller 上标记了 <see cref="NoAuditLogAttribute"/> 时视为不记录
+    /// </summary>
+    private static bool IsAuditDisabled(ControllerActionDescriptor action)
+    {
+        return action.MethodInfo.IsDefined(typeof(NoAuditLogAttribute), inherit: true)
+               || action.ControllerTypeInfo.IsDefined(typeof(NoAuditLogAttribute), inherit: true);
     }
 
     /// <summary>

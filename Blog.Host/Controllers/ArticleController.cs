@@ -103,9 +103,9 @@ public class ArticleController(IArticleService articleService,IArticleSourceServ
     
     [HttpPost("{articleId}")]
     [UnitOfWork]
-    public async Task PublishArticle([FromRoute]string articleId)
+    public async Task<string> PublishArticle([FromRoute]string articleId)
     {
-        await articleService.PublishArticle(articleId);
+       return await articleService.PublishArticle(articleId);
     }
 
     [HttpPatch("{articleId}")]

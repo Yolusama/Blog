@@ -34,4 +34,6 @@ public class UserArticleVO
     public int CollectCount { get; set; }
     public DateTime? CreateTime { get; set; }
     public bool SaveWhenInit { get; set; } = true;
+    public string? CreationDeclaration { get; set; }
+    public string Cover { get; set; }
 }

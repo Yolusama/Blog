@@ -1,5 +1,6 @@
 ﻿using System.Linq.Expressions;
 using System.Net;
+using System.Runtime.Serialization;
 using Blog.Application.Attributes;
 using Blog.Application.Services.Interfaces.ArticleDomain;
 using Blog.Application.Services.UserDomain.Configuration;
@@ -41,6 +42,7 @@ public class ArticleService(ILogger<ArticleService> logger,
             article.AuthorId = model.UserId;
             article.Cover = Constants.DefaultArticleCover;
             article.Content = string.Empty;
+            article.PublishStatus = ArticlePublishStatus.Editing.IntValue();
             model.ArticleId = article.Id;
             if (string.IsNullOrEmpty(model.Title))
             {
@@ -103,11 +105,11 @@ public class ArticleService(ILogger<ArticleService> logger,
         var articleCommentQuery = articleCommentRepository.NoTracking
             .GroupBy(ac => ac.ArticleId)
             .Select(g => new { ArticleId = g.Key, ArticleCount = g.Count() });
-        var articles = await articleRepository.NoTracking
+        var dbQuery = articleRepository.NoTracking
             .WhereIf(query.IsDeleted.HasValue,a=>a.IsDeleted == query.IsDeleted)
             .WhereIf(query.IsDraft.HasValue,a=>a.IsDraft == query.IsDraft)
             .WhereIf(query.PublishStatus.HasValue, a => a.PublishStatus == query.PublishStatus)
-            .Join(userRepository.NoTracking.Where(e => e.Status == (int)UserStatus.Normal),
+            .Join(userRepository.NoTracking.Where(e => e.Status == UserStatus.Normal.IntValue()),
                 a => a.AuthorId, u => u.Id, (a, u) => new { Article = a, User = u })
             .GroupJoin(articleCommentQuery,e=>e.Article.Id,ac=>ac.ArticleId,(e,ac)=>new {e.Article,e.User,Comments = ac})
             .SelectMany(e=>e.Comments.DefaultIfEmpty(),(e,ac)=>new {e.Article,e.User,Comment=ac})
@@ -134,9 +136,12 @@ public class ArticleService(ILogger<ArticleService> logger,
                 CollectCount = x.Article.CollectCount,
                 CreateTime = x.Article.CreateTime,
                 CommentCount = (int?)x.Comment.ArticleCount ?? 0,
+                CreationDeclaration = x.Article.CreationDeclaration,
+                Cover = x.Article.Cover,
                 SaveWhenInit = x.Article.SavedWhenInit
-            }).ToListAsync();
-        
+            });
+    
+        var articles = await dbQuery.ToListAsync();
         return articles.ToPagedResult(query.Page, query.PageSize, total);
     }
 
@@ -146,8 +151,8 @@ public class ArticleService(ILogger<ArticleService> logger,
             .GroupBy(ac => ac.ArticleId)
             .Select(g => new { ArticleId = g.Key, ArticleCount = g.Count() });
         var articles = await articleRepository.NoTracking.Where(a => !a.IsDeleted && !a.IsDraft
-                && a.PublishStatus == (int)ArticlePublishStatus.Published)
-            .Join(userRepository.NoTracking.Where(e => e.Status == (int)UserStatus.Normal),
+                && a.PublishStatus == ArticlePublishStatus.Published.IntValue())
+            .Join(userRepository.NoTracking.Where(e => e.Status == UserStatus.Normal.IntValue()),
                 a => a.AuthorId, u => u.Id, (a, u) => new { Article = a, User = u })
             .GroupJoin(articleCommentQuery,e=>e.Article.Id,ac=>ac.ArticleId,(e,ac)=>
                 new{e.Article,e.User,Comments = ac})
@@ -173,6 +178,8 @@ public class ArticleService(ILogger<ArticleService> logger,
                 ViewCount = x.Article.ViewCount,
                 CollectCount = x.Article.CollectCount,
                 CreateTime = x.Article.CreateTime,
+                CreationDeclaration = x.Article.CreationDeclaration,
+                Cover = x.Article.Cover,
                 CommentCount = (int?)x.Comment.ArticleCount ?? 0
             }).ToListAsync();
         return articles.ToPagedResult(query.Page, query.PageSize, total);
@@ -321,15 +328,19 @@ public class ArticleService(ILogger<ArticleService> logger,
         articleOptions.UpdateTime = DateTime.Now;
     }
 
-    public async Task PublishArticle(string articleId)
+    public async Task<string> PublishArticle(string articleId)
     {
-        var article = await articleRepository.All.FirstOrDefaultAsync(a => a.Id == articleId && !a.IsDeleted && a.IsDraft);
+        var article = await articleRepository.All.FirstOrDefaultAsync(a => a.Id == articleId && !a.IsDeleted && a.IsDraft
+        && a.PublishStatus == ArticlePublishStatus.Editing.IntValue());
         if (article == null)
-            throw new ServiceException("文章已不存在");
+            throw new ServiceException("文章已不存在或已在审核中...");
+        if (string.IsNullOrEmpty(article.Abstract?.Trim()))
+            throw new SerializationException("请编辑摘要内容！");
         article.SendToBeAudited();
         //目前无人审核，直接使用MQ异步刷新状态
         await mqProducer.Produce(MQActions.ArticleQueue,rabbitMqConfig.ClientProvideName,
             MQActions.ArticleAuditAction,new {ArticleId = articleId});
+        return "已发布，等待审核...页面将关闭！";
     }
 
     public async Task<long> WriteComment(ArticleCommentDTO commentDto)

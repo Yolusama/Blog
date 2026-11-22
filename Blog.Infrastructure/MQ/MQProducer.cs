@@ -1,12 +1,17 @@
 ﻿using System.Text;
 using System.Text.Json;
 using Blog.Infrastructure.Interfaces;
+using Blog.Shared.Functional;
 using RabbitMQ.Client;
 
 namespace Blog.Infrastructure.MQ;
 
 public class MQProducer(IConnection connection) : IMQProducer
 {
+    private readonly JsonSerializerOptions _serializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
     public async Task Produce<T>(string queue, string exchange, string routeKey, T messageModel)
     {
         try
@@ -28,7 +33,7 @@ public class MQProducer(IConnection connection) : IMQProducer
                 arguments: null);
 
             await channel.QueueBindAsync(queue, exchange, routeKey);
-            var message = JsonSerializer.Serialize(messageModel);
+            var message = messageModel.ToJson(_serializerOptions);
             var body = Encoding.UTF8.GetBytes(message);
             await channel.BasicPublishAsync(exchange, routeKey, body: body);
         }

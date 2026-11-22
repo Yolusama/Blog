@@ -115,7 +115,6 @@ public class Article : AggregateRoot<string>
     public void SendToBeAudited()
     {
         IsDraft = false;
-        PublishStatus = ArticlePublishStatus.Auditing.IntValue();
         Publish();
     }
     
