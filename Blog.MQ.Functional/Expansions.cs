@@ -125,10 +125,12 @@ public static class Expansions
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
+
             worker.Rollback();
             if(errorAction!=null)
                 errorAction.Invoke(e);
+            else          
+                Console.WriteLine(e);
             return false;
         }
     }

@@ -138,10 +138,11 @@ public class MQConsumer(ILogger<MQConsumer> logger,
                 if (values.Length > 0)
                 {
                     var body = (JObject)JsonConvert.DeserializeObject(bodyStr, _serializerSettings);
+                    var serializer = JsonSerializer.Create(_serializerSettings);
                     for (int i = 0; i < parameters.Length; i++)
                     {
                         var jToken = body[parameters[i].Name];
-                        values[i] = jToken?.ToObject(parameters[i].ParameterType);
+                        values[i] = jToken?.ToObject(parameters[i].ParameterType,serializer);
                     }
                 }
                 var result = Invoke(route, method, controllerBase, values);

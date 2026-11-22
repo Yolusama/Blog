@@ -16,7 +16,7 @@ public class ArticleService(IFreeSql orm,ILogger<ArticleService> logger) : IArti
               .Set(a=>a.PublishTime,DateTime.Now)
               .Set(a=>a.UpdateTime,DateTime.Now)
               .Where(a=>a.PublishStatus == ArticlePublishStatus.Auditing.IntValue() 
-              && a.Id == articleId && !a.IsDeleted && !a.IsDraft)
+              && a.Id == articleId && !a.IsDeleted )
               .ExecuteAffrowsAsync();
         },ex=>logger.LogError("出现异常：{ex}",ex));
       if(execResult)

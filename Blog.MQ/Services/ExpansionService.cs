@@ -1,6 +1,7 @@
 ﻿using Blog.MQ.Core;
 using Blog.MQ.Functional;
 using Blog.MQ.Model.Configuration;
+using Blog.MQ.Services.Interfaces;
 using FreeSql;
 using RabbitMQ.Client;
 using Serilog;
@@ -63,9 +64,15 @@ public static class ExpansionService
         var builder = new FreeSqlBuilder();
         var freeSql = builder
             .UseConnectionString(DataType.MySql, configuration["DbConnectionStr"])
+            .UseAdoConnectionPool(true)
             .UseMonitorCommand(cmd => Console.WriteLine($"{cmd.CommandText}"))
             .UseAutoSyncStructure(false) 
             .Build();
         services.AddSingleton(freeSql);
+    }
+
+    public static void AddServices(this IServiceCollection services)
+    {
+        services.AddScoped<IArticleService, ArticleService>();
     }
 }
