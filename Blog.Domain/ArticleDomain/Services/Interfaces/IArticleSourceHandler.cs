@@ -5,6 +5,7 @@ namespace Blog.Domain.ArticleDomain.Services.Interfaces;
 public interface IArticleSourceHandler
 {
     public Task<string> StoreArticleContent(string fileName,int userId,string content);
+    public Task<string> StoreArticleCover(IFormFile file,int userId);
     public Task<string> ReadArticleContent(string fileName,int userId);
     public Task RemoveArticleFile(string fileName,int userId);
     public Task RemoveSource(string fileName,int userId);

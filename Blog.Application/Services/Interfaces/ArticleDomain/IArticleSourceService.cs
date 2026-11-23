@@ -6,4 +6,5 @@ namespace Blog.Application.Services.Interfaces.ArticleDomain;
 public interface IArticleSourceService
 {
     public Task<string> HandleUpload(IFormFile file,string articleId);
+    public Task<string> UploadArticleCover(IFormFile file, string articleId);
 }

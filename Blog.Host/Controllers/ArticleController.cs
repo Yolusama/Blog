@@ -114,4 +114,12 @@ public class ArticleController(IArticleService articleService,IArticleSourceServ
         await articleService.RecoverArticle(articleId);
     }
     
+    [HttpPost]
+    [Authorize]
+    public async Task<string> UploadArticleCover(IFormFile file,[FromForm]string articleId)
+    {
+        return await articleSourceService.UploadArticleCover(file, articleId);
+    }
+
+    
 }

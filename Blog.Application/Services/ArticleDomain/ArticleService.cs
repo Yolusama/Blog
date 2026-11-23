@@ -271,7 +271,11 @@ public class ArticleService(ILogger<ArticleService> logger,
         {
             await RemoveArticleAllContent(article);
             if(!string.IsNullOrEmpty(article.Content))
-               await articleSourceHandler.RemoveArticleFile(article.Content, article.AuthorId);
+            {
+                await articleSourceHandler.RemoveArticleFile(article.Content, article.AuthorId);
+                if (article.Cover != Constants.DefaultArticleCover)
+                    await articleSourceHandler.RemoveArticleFile(article.Cover, article.AuthorId);
+            }
         }
         else
         {

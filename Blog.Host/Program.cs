@@ -27,6 +27,7 @@ builder.Services.AddSerilogService();
 builder.Services.AddDomainEventChannel();
 builder.Services.AddEmailSender();
 builder.Services.AddArticleSourceHandler();
+builder.Services.AddJobs();
 
 builder.Services.AddRedis(builder.Configuration
     .GetConnectionString(Constants.Redis)

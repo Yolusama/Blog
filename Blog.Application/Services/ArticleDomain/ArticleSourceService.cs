@@ -41,4 +41,13 @@ public class ArticleSourceService(
 
         return articleSource.FileName;
     }
+
+    public async Task<string> UploadArticleCover(IFormFile file, string articleId)
+    {
+        var userId = articleRepository.NoTracking
+            .Where(a=>a.Id == articleId) 
+            .Select(a=>a.AuthorId)
+            .First();
+      return  await articleSourceHandler.StoreArticleCover(file,userId);
+    }
 }

@@ -14,6 +14,7 @@ public static class Constants
     public const string RabbitMQConfigKey = "RabbitMQConfig";
     public const string MarkDownFileExtension = ".md";
     public const string HTMLFileExtension = ".html";
+    public const string UserCreations = "Creations";
     public const int ChannelCapacity = 1024;
     public const int EOF = -1;
     public const string StaticFiles = nameof(StaticFiles);
@@ -24,6 +25,13 @@ public static class Constants
     public const int ArticleRankingMaxCount = 10;
     public const int Week = 7;
     public const int HalfMonth = 15;
+
+    public static string[] ImageExtensions { get; } =
+    [
+        ".bmp", ".iff", ".ilbm", ".tiff", ".tif", ".png", ".gif", ".jpeg", ".jpg", ".mng", ".xpm", ".psd", ".sai",
+        ".psp", ".ufo", ".xcf", ".pcx", ".ppm", ".webp", ".ps", ".eps", ".ai", ".fh", ".swf", ".fla", ".svg", ".wmf",
+        ".dxf", ".cgm", ".tga", ".exif", ".fpx", ".cdr", ".pcd", ".raw", ".avif", ".apng", ".hdr"
+    ];
 
     public static TimeSpan LoginExpire { get; } = TimeSpan.FromDays(7);
     public static TimeSpan RegisterExpire { get; } = TimeSpan.FromMinutes(3);
