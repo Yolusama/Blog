@@ -207,6 +207,62 @@ public class ArticleService(ILogger<ArticleService> logger,
         return model;
     }
 
+    public async Task<ArticleDetailVO> GetArticleDetail(string articleId, int userId)
+    {
+        var data = await articleRepository.NoTracking
+            .Where(a => a.Id == articleId && !a.IsDeleted)
+            .Join(userRepository.NoTracking.Where(u => u.Status == UserStatus.Normal.IntValue()),
+                a => a.AuthorId, u => u.Id, (a, u) => new { Article = a, User = u })
+            .FirstOrDefaultAsync();
+        if (data == null)
+            throw new ServiceException("文章已不存在", HttpStatusCode.NotFound.IntValue());
+
+        var article = data.Article;
+        var commentCount = await articleCommentRepository.NoTracking
+            .CountAsync(c => c.ArticleId == articleId);
+        var detail = new ArticleDetailVO
+        {
+            ArticleId = article.Id,
+            Title = article.Title,
+            Abstract = article.Abstract,
+            Cover = article.Cover,
+            CreationDeclaration = article.CreationDeclaration,
+            AuthorId = article.AuthorId,
+            AuthorName = data.User.Nickname,
+            AuthorAvatar = data.User.Avatar,
+            ViewCount = article.ViewCount,
+            LikeCount = article.LikeCount,
+            DislikeCount = article.DislikeCount,
+            CollectCount = article.CollectCount,
+            CommentCount = commentCount,
+            CreateTime = article.CreateTime,
+            PublishTime = article.PublishTime
+        };
+
+        if (!string.IsNullOrEmpty(article.Content))
+        {
+            try
+            {
+                detail.Content = await articleSourceHandler.ReadArticleContent(article.Content, article.AuthorId);
+            }
+            catch (FileNotFoundException)
+            {
+                logger.LogWarning("读取文章 {ArticleId} 内容失败", article.Id);
+            }
+        }
+
+        var options = await articleOptionsRepository.NoTracking
+            .FirstOrDefaultAsync(o => o.ArticleId == articleId && o.UserId == userId);
+        if (options != null)
+        {
+            detail.Liked = options.Liked;
+            detail.Disliked = options.DisLiked;
+            detail.Collected = options.HasCollected;
+        }
+
+        return detail;
+    }
+
     public async Task<ArticleRankingVO> GetArticleRanking()
     { 
        var ranking = new ArticleRankingVO();

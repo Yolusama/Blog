@@ -9,7 +9,7 @@ public static class JobExpansion
 {
     public static void AddJobs(this IServiceCollection services)
     {
-        var jobTypes = Assembly.GetExecutingAssembly()
+        var jobTypes = Assembly.GetEntryAssembly()
             .GetTypes()
             .Where(t => t.IsAssignableTo(typeof(IJob)) && t.IsDefined(typeof(QuartzJobAttribute), false));
         services.AddQuartz(q =>
@@ -17,7 +17,10 @@ public static class JobExpansion
             foreach (var jobType in jobTypes)
             {
                 var jobAttr = jobType.GetCustomAttribute<QuartzJobAttribute>()!;
-                q.CreateJob(jobAttr.JobKey,jobAttr.JobTriggerId,jobAttr.CronExpression,jobType);
+                var jobKey = !string.IsNullOrEmpty(jobAttr.JobKey?.Trim()) ? jobAttr.JobKey.Trim() : jobType.Name;
+                var jobTriggerId = !string.IsNullOrEmpty(jobAttr.JobTriggerId?.Trim()) ? jobAttr.JobTriggerId.Trim() :
+                    $"Trigger_{jobType.Name}";
+                q.CreateJob(jobKey,jobTriggerId,jobAttr.CronExpression,jobType);
                 services.AddScoped(jobType);
             }
         });

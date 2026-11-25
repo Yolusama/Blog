@@ -32,6 +32,14 @@ public class ArticleController(IArticleService articleService,IArticleSourceServ
     {
         return await articleService.GetArticleContent(articleId);
     }
+
+    [HttpGet("~/api/Article/detail/{articleId}")]
+    [Authorize]
+    public async Task<ArticleDetailVO> GetArticleDetail([FromRoute]string articleId)
+    {
+        var user = GetCurrentUser();
+        return await articleService.GetArticleDetail(articleId, user.UserId);
+    }
     
     [HttpPut]
     [Authorize]
@@ -116,7 +124,7 @@ public class ArticleController(IArticleService articleService,IArticleSourceServ
     
     [HttpPost]
     [Authorize]
-    public async Task<string> UploadArticleCover(IFormFile file,[FromForm]string articleId)
+    public async Task<string> UploadCover(IFormFile file,[FromForm]string articleId)
     {
         return await articleSourceService.UploadArticleCover(file, articleId);
     }

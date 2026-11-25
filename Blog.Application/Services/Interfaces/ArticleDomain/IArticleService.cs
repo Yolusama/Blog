@@ -14,6 +14,7 @@ public interface IArticleService
     public Task<BasePageQueryResult<UserArticleVO>> GetUserArticles(UserArticleQuery query);
     public Task<BasePageQueryResult<UserArticleVO>> GetRecentArticles(ArticleQuery query);
     public Task<ArticleSaveModel> GetArticleContent(string articleId);
+    public Task<ArticleDetailVO> GetArticleDetail(string articleId,int userId);
     public Task<ArticleRankingVO> GetArticleRanking();
     public Task RecoverArticle(string articleId);
     public Task RemoveArticle(string articleId,bool trueDelete = false);

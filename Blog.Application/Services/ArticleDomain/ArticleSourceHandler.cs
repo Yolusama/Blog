@@ -24,7 +24,8 @@ public class ArticleSourceHandler(IConfiguration configuration) : IArticleSource
     public async Task<string> StoreArticleCover(IFormFile file, int userId)
     {
         var newFileName = RandomGenerator.Guid() + Path.GetExtension(file.FileName);
-        using var fileStream = new FileStream(newFileName, FileMode.Create,FileAccess.Write,FileShare.ReadWrite);
+        var path = Path.Combine(configuration[Constants.StaticFilesStorePath]!,Constants.UserCreations,userId.ToString(),newFileName);
+        using var fileStream = new FileStream(path, FileMode.Create,FileAccess.Write,FileShare.ReadWrite);
         await file.CopyToAsync(fileStream);
         return newFileName;
     }

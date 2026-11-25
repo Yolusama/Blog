@@ -10,7 +10,7 @@ public static class Constants
     public const string MigrationDb = nameof(MigrationDb);
     public const string FileResponseHeader = "application/octet-stream";
     public const string DefaultUserAvatar = "default-user.png";
-    public const string DefaultArticleCover = "default-cover.png";
+    public const string DefaultArticleCover = "default-article-cover.png";
     public const string RabbitMQConfigKey = "RabbitMQConfig";
     public const string MarkDownFileExtension = ".md";
     public const string HTMLFileExtension = ".html";

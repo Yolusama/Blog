@@ -60,7 +60,8 @@ public static class ExpansionService
                     .WriteTo.Console()
                     .WriteTo.File("Logs/info-.log", LogEventLevel.Information, rollingInterval: RollingInterval.Hour)
                     .WriteTo.File("Logs/error-.log", LogEventLevel.Error, rollingInterval: RollingInterval.Hour)
-                    .WriteTo.File("Logs/debug-.log", LogEventLevel.Debug, rollingInterval: RollingInterval.Hour);
+                    .WriteTo.File("Logs/debug-.log", LogEventLevel.Debug, rollingInterval: RollingInterval.Hour)
+                    .WriteTo.File("Logs/fatal-.log", LogEventLevel.Fatal, rollingInterval: RollingInterval.Hour);
             });
         }
         catch (Exception e)
