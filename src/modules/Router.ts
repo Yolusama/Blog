@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 
 
-const routes:RouteRecordRaw[] = [];
+const routes: RouteRecordRaw[] = [];
 
 routes.push({
     path: '/',
@@ -9,12 +9,12 @@ routes.push({
 });
 routes.push({
     path: '/login',
-    name: 'Login',  
+    name: 'Login',
     component: () => import('../views/user/UserLogin.vue')
 });
 routes.push({
     path: '/index',
-    name: 'Index',  
+    name: 'Index',
     component: () => import('../views/index.vue')
 });
 routes.push({
@@ -32,6 +32,11 @@ routes.push({
     name: 'UserProfile',
     component: () => import('../views/user/UserProfile.vue')
 });
+routes.push({
+    path: '/article/detail/:id',
+    name: "ArticleDetail",
+    component: () => import('../views/article/ArticleDetailView.vue')
+})
 
 const router = createRouter({
     history: createWebHistory(),

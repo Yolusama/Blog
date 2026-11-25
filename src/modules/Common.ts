@@ -60,10 +60,13 @@ export function GetAgeWithMonth(date:Date)
     return `${sign}${years}年${months}月${days}天`;
 }
 
-export function ToFromData(obj:any)
+export function toFormData(obj:any)
 {
     const formData = new FormData();
     for(let pro in obj)
         formData.append(pro,obj[pro]);
     return formData;
 }
+
+export const DEFAULT_ARTICLE_COVER = '/default-article-cover.png';
+export const DefaultArticleCover = "default-article-cover.png";

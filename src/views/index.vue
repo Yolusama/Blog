@@ -77,7 +77,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { GetRecentArticles, type ArticleListItem } from '../api/article';
+import { ArticleStatus, GetRecentArticles, type ArticleListItem } from '../api/article';
 import type { BasePageQuery, Pagination } from '../modules/Request';
 import type { User } from '../api/user';
 import ArticleRanking from '../components/ArticleRanking.vue';
@@ -181,6 +181,11 @@ async function loadArticles(query = articleQuery.value) {
 }
 
 function openArticle(article: ArticleListItem) {
+    // 已发布的文章进入阅读详情页，未发布的仍回到编辑器
+    if (!article.isDraft && article.publishedStatus === ArticleStatus.Published) {
+        router.push(`/article/detail/${article.articleId}`);
+        return;
+    }
     router.push(`/article/editor/${article.articleId}`);
 }
 

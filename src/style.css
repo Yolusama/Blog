@@ -20,7 +20,9 @@
   color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
-  font-synthesis: none;
+  /* 不要禁用字体合成（font-synthesis: none），否则没有斜体字形的字体
+     （如 Windows 上的 system-ui / 中文字体）无法通过合成显示 <em> 斜体 */
+  font-synthesis: weight style;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -219,6 +221,15 @@ code {
 #app:has(.editor-page) {
   width: 100%;
   max-width: none;
+  border-inline: none;
+  text-align: left;
+}
+
+#app:has(.article-detail-page) {
+  width: 100%;
+  max-width: none;
+  height: auto;
+  min-height: 100vh;
   border-inline: none;
   text-align: left;
 }

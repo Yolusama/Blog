@@ -8,7 +8,7 @@
                     <h2 class="article-title">{{ article.title || '未命名文章' }}</h2>
 
                     <div v-if="article.cover || article.abstract" class="article-summary">
-                        <el-image v-if="article.cover" :src="resolveCover(article.cover)" fit="cover"
+                        <el-image v-if="article.cover" :src="resolveCover(article)" fit="cover"
                             class="article-cover" alt="文章封面" />
                         <p v-if="article.abstract" class="article-abstract">{{ article.abstract }}</p>
                     </div>
@@ -56,7 +56,7 @@
             <div v-else class="article-empty">
                 <slot name="empty">
                     <el-empty description="当前内容为空">
-                        <el-button v-if="withUserCreation" type="primary" class="create-button"
+                        <el-button v-if="withUserCreation && !query.isDeleted" type="primary" class="create-button"
                             @click="handleCreate">创建文章</el-button>
                     </el-empty>
                 </slot>
@@ -87,6 +87,7 @@ import { Close, Loading } from '@element-plus/icons-vue';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import type { ArticleListItem, UserArticleQuery } from '../api/article.ts';
 import { getSource, type Pagination } from '../modules/Request.ts';
+import { DefaultArticleCover } from '../modules/Common.ts';
 
 /**
  * 文章列表：articles 为外部数据源（Pagination<T>），query 为查询条件；
@@ -252,11 +253,12 @@ function formatTime(value?: string | Date) {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function resolveCover(cover?: string) {
-    const value = (cover ?? '').trim();
+function resolveCover(articleItem:ArticleListItem) {
+    const value = (articleItem.cover ?? '').trim();
     if (!value) return '';
     if (/^(https?:|data:|blob:)/i.test(value) || value.startsWith('/')) return value;
-    return getSource(value, 'Images');
+    if(value == DefaultArticleCover) return getSource(value,"Images");
+    return getSource(value, `Creations/${articleItem.authorId}`);
 }
 
 defineExpose({ scrollToTop });

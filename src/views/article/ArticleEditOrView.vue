@@ -54,7 +54,7 @@
                                 maxlength="200" show-word-limit resize="none" placeholder="简要概括文章内容，最多 200 字" />
                         </div>
                         <div class="meta-field">
-                            <span class="meta-label">创作声明</span>
+                            <span class="meta-label">创作声明：&nbsp;</span>
                             <el-select v-model="articleContent.creationDeclaration" class="meta-declaration"
                                 placeholder="请选择创作声明（选填）">
                                 <el-option v-for="item in declarationOptions" :key="item.value" :label="item.label"
@@ -64,10 +64,11 @@
                     </div>
                     <div class="cover-field">
                         <span class="meta-label">封面</span>
-                        <button type="button" class="cover-preview" aria-label="上传文章封面" @click="triggerCoverUpload">
-                            <img :src="coverPreview" alt="封面" />
+                        <div class="cover-preview">
                             <span v-if="coverUploading" class="cover-mask">上传中...</span>
-                        </button>
+                            <el-image class="cover-image" :src="coverPreview" alt="封面" fit="contain"
+                                :preview-src-list="[coverPreview]" />
+                        </div>
                         <div class="cover-actions">
                             <el-button size="small" :loading="coverUploading" @click="triggerCoverUpload">
                                 上传封面
@@ -122,7 +123,7 @@ import TiptapEditor from '../../components/TiptapEditor.vue';
 import ArticleMarkdownEditorView from './ArticleMarkdownEditorView.vue';
 import '../../components/tiptap/tiptap-content.css';
 import { Document, EditPen } from '@element-plus/icons-vue';
-import { UploadFile } from '../../api/artcileSource.ts';
+import { UploadArticleCover, UploadFile } from '../../api/artcileSource.ts';
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
 import { type ArticleSaveModel, GetArticleContent, PublishArticle, SaveArticle } from '../../api/article.ts';
 import stateStroge from '../../modules/StateStorage.ts';
@@ -130,6 +131,7 @@ import { type User } from '../../api/user.ts';
 import { delayToRun, loading } from '../../modules/Utils.ts';
 import { getSource } from '../../modules/Request.ts';
 import { CreationDecalrations } from '../../modules/Common.ts';
+import { DEFAULT_ARTICLE_COVER } from '../../modules/Common.ts';
 type EditorMode = 'rich' | 'markdown';
 
 interface RichTextEditorInstance {
@@ -151,7 +153,6 @@ const previewRef = ref<HTMLDivElement | null>(null);
 const tiptapEditorRef = ref<RichTextEditorInstance | null>(null);
 const markdownEditorRef = ref<MarkdownEditorInstance | null>(null);
 const articleId = ref('');
-const DEFAULT_ARTICLE_COVER = '/default-article-cover.png';
 const EDITOR_MIN_HEIGHT = 620;
 const coverInputRef = ref<HTMLInputElement | null>(null);
 const coverUploading = ref(false);
@@ -277,12 +278,12 @@ function toggleEditorMode() {
 function resolveCoverUrl(cover?: string) {
     const value = (cover ?? '').trim();
     if (!value) {
-        return DEFAULT_ARTICLE_COVER;
+        return getSource(DEFAULT_ARTICLE_COVER, "Images");
     }
     if (/^(https?:|data:|blob:)/i.test(value) || value.startsWith('/')) {
         return value;
     }
-    return `/${value}`;
+    return  getSource(value,`Creations/${articleContent.userId}`);
 }
 
 // 服务端保存的是声明编号，兼容早期可能存在的文案数据
@@ -325,13 +326,13 @@ function handleCoverChange(event: Event) {
         return;
     }
     coverUploading.value = true;
-    UploadFile(file, articleId.value)
+    UploadArticleCover(file, articleId.value)
         .then(res => {
             if (!res.success) {
                 ElMessage.error(res.message);
                 return;
             }
-            articleContent.cover = getSource(res.data, `Source/${articleContent.userId}`);
+            articleContent.cover = res.data;
             ElMessage.success('封面上传成功');
         })
         .catch(error => ElNotification.error(error))
@@ -386,6 +387,7 @@ function saveArticle(model: ArticleSaveModel, init: boolean, silent = false): Pr
             }
             // 内容与上次保存一致时服务端返回 201，视为已保存，避免阻断后续发布
             if (res.code == 201) {
+                ElMessage.info(res.message);
                 markSaved();
                 return true;
             }
@@ -503,7 +505,7 @@ async function publishArticle(model: ArticleSaveModel) {
         .then(res => {
             if (res.success) {
                 ElMessage.success(res.data);
-                delayToRun(window.close,1000);
+                delayToRun(window.close, 1000);
             }
             else
                 ElMessage.error(res.message);
@@ -702,11 +704,10 @@ async function publishArticle(model: ArticleSaveModel) {
     border-color: #a6b3ff;
 }
 
-.cover-preview img {
+.cover-image {
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;
 }
 
 .cover-mask {

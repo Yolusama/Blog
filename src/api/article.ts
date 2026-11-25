@@ -63,12 +63,61 @@ export interface UserArticleQuery extends BasePageQuery
    isDeleted?:boolean,
 }
 
+export interface ArticleDetail {
+  articleId: string;
+  title: string;
+  abstract?: string;
+  cover?: string;
+  content?: string;
+  creationDeclaration?: string;
+  authorId: number;
+  authorName: string;
+  authorAvatar: string;
+  viewCount: number;
+  likeCount: number;
+  dislikeCount: number;
+  collectCount: number;
+  commentCount: number;
+  createTime?: string;
+  publishTime?: string;
+  liked: boolean;
+  disliked: boolean;
+  collected: boolean;
+}
+
+export const LikeOrDislike = {
+  Like: 'Like',
+  Dislike: 'Dislike'
+} as const;
+
+export type LikeOrDislike = (typeof LikeOrDislike)[keyof typeof LikeOrDislike];
+
 export function SaveArticle(model:ArticleSaveModel){
     return request.put("/api/Article/SaveArticle",model);
 }
 
 export function GetArticleContent(articleId:string){
     return request.get(`/api/Article/GetArticleContent/${articleId}`);
+}
+
+export function GetArticleDetail(articleId:string){
+    return request.get(`/api/Article/detail/${articleId}`);
+}
+
+export function ViewArticle(articleId:string){
+    return request.patch(`/api/Article/ViewArticle/${articleId}`);
+}
+
+export function LikeOrDislikeArticle(articleId:string,type:LikeOrDislike){
+    return request.put(`/api/Article/LikeOrDislikeArticle/${articleId}`,undefined,{
+        params:{type}
+    });
+}
+
+export function CollectArticle(articleId:string,toCollect:boolean){
+    return request.put(`/api/Article/CollectArticle/${articleId}`,undefined,{
+        params:{toCollect}
+    });
 }
 
 export function GetUserArticles(query:UserArticleQuery)
