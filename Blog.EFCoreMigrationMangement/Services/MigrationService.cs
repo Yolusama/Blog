@@ -140,6 +140,11 @@ public class MigrationService(MigrationDbContext context,
         
     }
 
+    public async Task<ResponseResult> GenerateMigrationScript(string id, string name)
+    {
+        return null;
+    }
+
     private static FileInfo GetMigrationFileName(string migrationName)
     {
         var migrationsFolderPath = new DirectoryInfo(MigrationsFolder);

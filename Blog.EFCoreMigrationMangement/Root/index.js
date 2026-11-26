@@ -63,6 +63,10 @@ function getTotalPages() {
     return Math.max(1, Math.ceil(totalCount / pageSize));
 }
 
+function GenerateMigrationScript(item) {
+    return undefined;
+}
+
 function renderRows() {
     loadDataRow.style.display = "none";
     if (!rows.length) {
@@ -110,7 +114,13 @@ function renderRows() {
           deleteBtn.dataset.name = item.name;
           deleteBtn.textContent = "删除";
           deleteBtn.style.display = "none";
-          deleteBtn.addEventListener("click", () => removeMigrate(item));
+          const generateScriptBtn = document.createElement("button");
+          deleteBtn.type = "button";
+          deleteBtn.className = "btn btn-sm btn-outline-info js-info";
+          deleteBtn.dataset.id = item.id;
+          deleteBtn.dataset.name = item.name;
+          deleteBtn.textContent = "生成迁移脚本";
+          deleteBtn.addEventListener("click", () => GenerateMigrationScript(item));
           actionTd.append(applyBtn, deleteBtn);
           row.append(idTd, nameTd, createTimeTd, fileNameTd, applyTimeTd, actionTd);
           tableBody.appendChild(row);

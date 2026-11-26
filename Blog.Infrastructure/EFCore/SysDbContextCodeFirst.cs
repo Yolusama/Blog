@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using Blog.Domain.ArticleDomain.Entity;
+using Blog.Domain.CommonDomain;
 using Blog.Domain.UserDomain.Entity;
 using Blog.Shared;
 using Microsoft.EntityFrameworkCore;
@@ -443,6 +444,39 @@ public partial class SysDbContext
                 .HasDatabaseName("IX_UserOptions_UserId");
             configurer.HasIndex(uo=>uo.ObjectId)
                 .HasDatabaseName("IX_UserOptions_ObjectId");
+        });
+        #endregion
+
+        #region 通知信息表迁移
+        builder.Entity<Notification>(configurer =>
+        {
+            configurer.ToTable(nameof(Notification), t => t.HasComment("通知信息表"));
+
+            configurer.HasKey(n => n.Id);
+
+            configurer.Property(n => n.Content)
+                .HasMaxLength(200)
+                .IsRequired()
+                .HasComment("消息内容");
+            configurer.Property(n => n.CreateTime)
+                .IsRequired(false)
+                .HasColumnType("datetime")
+                .HasComment("创建时间");
+            configurer.Property(n => n.Type)
+                .HasColumnType("int")
+                .HasComment("通知消息类性：1.评论回复@，2.收到点赞/点踩，3.用户消息传输，4.文章被收藏");
+            configurer.Property(n => n.IsRead)
+                .HasColumnType("tinyint(1)")
+                .HasComment("是否已读");
+            configurer.Property(n => n.SenderId)
+                .IsRequired(false)
+                .HasComment("发送方Id");
+            configurer.Property(n => n.ReceiverId)
+                .HasComment("接收方Id");
+
+            configurer.HasIndex(n => n.SenderId).HasDatabaseName("Index_Notification_SenderId");
+            configurer.HasIndex(n => n.ReceiverId).HasDatabaseName("Index_Notification_ReceiverId");
+            configurer.HasIndex(n=>n.Type).HasDatabaseName("Index_Notification_Type");
         });
         #endregion
     }

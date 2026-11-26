@@ -1,5 +1,7 @@
 ﻿
-namespace Blog.Shared;
+using Blog.Shared;
+
+namespace Blog.Domain.CommonDomain;
 
 public class ProjectAuditLog : AggregateRoot<long>
 {

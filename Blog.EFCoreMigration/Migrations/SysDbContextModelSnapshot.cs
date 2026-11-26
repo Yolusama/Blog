@@ -356,6 +356,137 @@ namespace Blog.EFCoreMigration.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Blog.Domain.CommonDomain.Notification", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasComment("消息内容");
+
+                    b.Property<DateTime?>("CreateTime")
+                        .HasColumnType("datetime")
+                        .HasComment("创建时间");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("tinyint(1)")
+                        .HasComment("是否已读");
+
+                    b.Property<int>("ReceiverId")
+                        .HasColumnType("int")
+                        .HasComment("接收方Id");
+
+                    b.Property<int?>("SenderId")
+                        .HasColumnType("int")
+                        .HasComment("发送方Id");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int")
+                        .HasComment("通知消息类性：1.评论回复@，2.收到点赞/点踩，3.用户消息传输，4.文章被收藏");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceiverId")
+                        .HasDatabaseName("Index_Notification_ReceiverId");
+
+                    b.HasIndex("SenderId")
+                        .HasDatabaseName("Index_Notification_SenderId");
+
+                    b.HasIndex("Type")
+                        .HasDatabaseName("Index_Notification_Type");
+
+                    b.ToTable("Notification", null, t =>
+                        {
+                            t.HasComment("通知信息表");
+                        });
+                });
+
+            modelBuilder.Entity("Blog.Domain.CommonDomain.ProjectAuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasComment("日志Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActionDesc")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasComment("Action描述内容");
+
+                    b.Property<string>("ActionName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasComment("Action方法名");
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasComment("请求方式");
+
+                    b.Property<string>("ClientInfo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasComment("客户端请求信息（请求头User-Agent)");
+
+                    b.Property<string>("Exception")
+                        .HasColumnType("longtext")
+                        .HasComment("异常信息");
+
+                    b.Property<int>("ExecutionDuration")
+                        .HasColumnType("int")
+                        .HasComment("执行耗时（毫秒）");
+
+                    b.Property<DateTime>("ExecutionTime")
+                        .HasColumnType("datetime")
+                        .HasComment("执行时间");
+
+                    b.Property<string>("ParameterJson")
+                        .HasColumnType("json")
+                        .HasComment("请求参数Json");
+
+                    b.Property<string>("RemoteIpAddr")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasComment("远程请求IP");
+
+                    b.Property<string>("Route")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasComment("请求路由");
+
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasComment("服务/控制器名");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActionName")
+                        .HasDatabaseName("IX_ProjectAuditLog_ActionName");
+
+                    b.HasIndex("ExecutionTime")
+                        .HasDatabaseName("IX_ProjectAuditLog_ExecutionTime");
+
+                    b.ToTable("ProjectAuditLog", null, t =>
+                        {
+                            t.HasComment("API审计日志表");
+                        });
+                });
+
             modelBuilder.Entity("Blog.Domain.UserDomain.Entity.User", b =>
                 {
                     b.Property<int>("Id")
@@ -476,86 +607,6 @@ namespace Blog.EFCoreMigration.Migrations
                     b.ToTable("UserOptions", null, t =>
                         {
                             t.HasComment("用户选项信息表");
-                        });
-                });
-
-            modelBuilder.Entity("Blog.Shared.ProjectAuditLog", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasComment("日志Id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("ActionDesc")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)")
-                        .HasComment("Action描述内容");
-
-                    b.Property<string>("ActionName")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("varchar(128)")
-                        .HasComment("Action方法名");
-
-                    b.Property<string>("ActionType")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("varchar(16)")
-                        .HasComment("请求方式");
-
-                    b.Property<string>("ClientInfo")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)")
-                        .HasComment("客户端请求信息（请求头User-Agent)");
-
-                    b.Property<string>("Exception")
-                        .HasColumnType("longtext")
-                        .HasComment("异常信息");
-
-                    b.Property<int>("ExecutionDuration")
-                        .HasColumnType("int")
-                        .HasComment("执行耗时（毫秒）");
-
-                    b.Property<DateTime>("ExecutionTime")
-                        .HasColumnType("datetime")
-                        .HasComment("执行时间");
-
-                    b.Property<string>("ParameterJson")
-                        .HasColumnType("json")
-                        .HasComment("请求参数Json");
-
-                    b.Property<string>("RemoteIpAddr")
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)")
-                        .HasComment("远程请求IP");
-
-                    b.Property<string>("Route")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)")
-                        .HasComment("请求路由");
-
-                    b.Property<string>("ServiceName")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("varchar(128)")
-                        .HasComment("服务/控制器名");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ActionName")
-                        .HasDatabaseName("IX_ProjectAuditLog_ActionName");
-
-                    b.HasIndex("ExecutionTime")
-                        .HasDatabaseName("IX_ProjectAuditLog_ExecutionTime");
-
-                    b.ToTable("ProjectAuditLog", null, t =>
-                        {
-                            t.HasComment("API审计日志表");
                         });
                 });
 #pragma warning restore 612, 618

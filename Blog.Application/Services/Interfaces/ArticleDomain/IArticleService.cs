@@ -21,7 +21,5 @@ public interface IArticleService
     public Task ViewArticle(string articleId,int userId);
     public Task LikeOrDislikeArticle(string articleId,int userId,LikeOrDislikeEnum type);
     public Task<string> PublishArticle(string articleId);
-    public Task<long> WriteComment(ArticleCommentDTO commentDto);
-    public Task LikeOrDislikeComment(long commentId,LikeOrDislikeEnum type);
     public Task CollectArticle(string articleId,int userId,bool toCollect);
 }

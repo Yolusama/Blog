@@ -10,7 +10,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace Blog.Controllers;
 
 [ApplicationService]
-public class ArticleController(IArticleService articleService,IArticleSourceService articleSourceService) : ProjectControllerBase
+public class ArticleController(IArticleService articleService,
+    IArticleSourceService articleSourceService,
+    IArticleCommentService articleCommentService) : ProjectControllerBase
 {
     [HttpGet]
     [Authorize]
@@ -91,14 +93,14 @@ public class ArticleController(IArticleService articleService,IArticleSourceServ
     [UnitOfWork]
     public async Task<long> WriteComment([FromBody] ArticleCommentDTO commentDto)
     {
-        return await articleService.WriteComment(commentDto);
+        return await articleCommentService.WriteComment(commentDto);
     }
     
     [HttpPut("{commentId}")]
     [UnitOfWork]
     public async Task LikeOrDislikeComment([FromRoute] long commentId,[FromQuery] LikeOrDislikeEnum type)
     {
-        await articleService.LikeOrDislikeComment(commentId, type);
+        await articleCommentService.LikeOrDislikeComment(commentId, type);
     }
     
     [HttpPut("{articleId}")]
