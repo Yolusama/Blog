@@ -74,5 +74,6 @@ public static class ExpansionService
     public static void AddServices(this IServiceCollection services)
     {
         services.AddScoped<IArticleService, ArticleService>();
+        services.AddScoped<INotificationService,NotificationService>();
     }
 }
