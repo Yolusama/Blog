@@ -37,6 +37,37 @@ public class MigrationsController(IMigrationService migrationService) : Controll
     {
         return await migrationService.RemoveMigration(id, name);
     }
+
+    [HttpGet("generate/{id}")]
+    public async Task<ActionResult> GenerateMigrationScript([FromRoute] string id,[FromQuery] string name)
+    {
+        try
+        {
+            var (fileName,bytes) = await migrationService.GenerateMigrationScript(id, name);
+            return File(bytes, Constants.FileResponseHeader,fileName);
+        }
+        catch (Exception e)
+        {
+            // 生成失败时返回可读信息，前端会从 ArrayBuffer 里解析 message 直接提示
+            return BadRequest(ResponseResult.Fail(e is FileNotFoundException
+                ? e.Message
+                : $"生成迁移脚本 {name} 失败：{e.Message}"));
+        }
+    }
+    
+    [HttpGet("fullyGenerate")]
+    public async Task<ActionResult> GenerateMigrationScript()
+    {
+        try
+        {
+            var (fileName,bytes) = await migrationService.GenerateMigrationScript();
+            return File(bytes, Constants.FileResponseHeader, fileName);
+        }
+        catch (Exception e)
+        {
+            return BadRequest(ResponseResult.Fail($"生成全量迁移脚本失败：{e.Message}"));
+        }
+    }
 }
 
 public struct MigrationRequest

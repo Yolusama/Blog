@@ -17,6 +17,7 @@ const searchInput = document.getElementById("searchInput");
 const searchBtn = document.getElementById("searchBtn");
 const loadDataRow = document.getElementById("loadDataRow");
 const removeLatestBtn = document.getElementById("removeLatestBtn");
+const generateAllBtn = document.getElementById("generateAllBtn");
 const migrationModal = new bootstrap.Modal(modalElement);
 
 let editingId = null;
@@ -63,8 +64,138 @@ function getTotalPages() {
     return Math.max(1, Math.ceil(totalCount / pageSize));
 }
 
-function GenerateMigrationScript(item) {
-    return undefined;
+/**
+ * 将字节数组下载为文件：先构造 Blob，再通过临时 <a> 标签触发下载
+ */
+function downloadBytes(bytes, fileName, contentType) {
+    const blob = new Blob([bytes], { type: contentType || "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName || "output.sql";
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    // 释放内存（延迟到下载已开始后再 revoke）
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
+ * 从 Content-Disposition 中解析服务端给出的文件名，缺失时回退到 fallback
+ * 后端现在返回真实文件名：
+ *   单个迁移：{id}-{name}-{时间戳}-Migration.sql
+ *   全量脚本：Migration-{时间戳}.sql
+ */
+function resolveFileNameFromHeaders(response, fallback) {
+    const headers = response?.headers ?? {};
+    const disposition = headers["content-disposition"] ?? headers["Content-Disposition"];
+    if (!disposition) return fallback;
+
+    // RFC 5987 形式：filename*=UTF-8''%E4%B8%AD%E6%96%87.sql（中文/特殊字符走这里）
+    const utf8Match = disposition.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+    if (utf8Match?.[1]) {
+        try {
+            const name = decodeURIComponent(utf8Match[1].trim());
+            if (name) return name;
+        } catch {
+            // 非法的 URL 编码，继续尝试普通 filename
+        }
+    }
+
+    // 普通形式：filename="name.sql"
+    const match = disposition.match(/filename\s*=\s*"?([^";]+)"?/i);
+    const name = match?.[1]?.trim();
+    return name || fallback;
+}
+
+/**
+ * 下载接口出错时，响应体是 ArrayBuffer，这里尝试解析出可读的错误信息
+ */
+function readDownloadError(error, fallback) {
+    const data = error?.response?.data;
+    if (data instanceof ArrayBuffer) {
+        try {
+            const text = new TextDecoder("utf-8").decode(new Uint8Array(data));
+            try {
+                const parsed = JSON.parse(text);
+                return parsed?.message || parsed?.title || parsed?.detail || fallback;
+            } catch {
+                // 非 JSON（例如 HTML 错误页），过滤掉 HTML 标签后截断展示
+                const plain = text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+                return plain && plain.length <= 300 ? plain : fallback;
+            }
+        } catch {
+            return fallback;
+        }
+    }
+    return data?.message || error?.message || fallback;
+}
+
+/**
+ * 生成单个迁移对应的 SQL 脚本（对应后端 GET /api/migrations/generate/{id}）
+ * 注意：脚本内容是「上一条迁移 → 本条迁移」的增量，只包含该迁移自身的变更，
+ * 而不是从空库累积到该迁移（dotnet ef migrations script <to> 的默认行为）
+ */
+async function GenerateMigrationScript(item) {
+    if (!item) return;
+
+    const confirmed = await MessageBox.confirm(
+        `将生成迁移脚本，仅包含迁移「${item.name}」自身的变更，是否继续？`,
+        { title: "生成迁移脚本", type: "info", confirmText: "生成" }
+    );
+    if (!confirmed) return;
+
+    const loading = Loading.show({
+        text: "正在生成迁移脚本…",
+        subText: `dotnet ef 需要先编译项目，请勿关闭或刷新页面：${item.name}`
+    });
+
+    try {
+        const response = await apiClient.get(`${apiUrl}/generate/${encodeURIComponent(item.id)}`, {
+            params: { name: item.name ?? "" },
+            responseType: "arraybuffer"
+        });
+        const fileName = resolveFileNameFromHeaders(response, `${item.name || "migration"}.sql`);
+        downloadBytes(response.data, fileName, response.headers?.["content-type"]);
+        Message.success(`迁移脚本「${fileName}」已开始下载`);
+    } catch (error) {
+        console.error(error);
+        Message.error(readDownloadError(error, "生成迁移脚本失败，请稍后重试。"));
+    } finally {
+        loading.close();
+    }
+}
+
+/**
+ * 生成从迁移历史底到最新的全量 SQL 脚本（对应后端 GET /api/migrations/fullyGenerate）
+ */
+async function generateAllMigrationScript() {
+    const confirmed = await MessageBox.confirm(
+        "将从迁移历史从头到尾到生成 SQL 迁移脚本，是否继续？",
+        { title: "全迁移", type: "info", confirmText: "生成" }
+    );
+    if (!confirmed) return;
+
+    const loading = Loading.show({
+        text: "正在生成全量迁移脚本…",
+        subText: "dotnet ef 需要先编译项目，请勿关闭或刷新页面"
+    });
+
+    try {
+        const response = await apiClient.get(`${apiUrl}/fullyGenerate`, {
+            responseType: "arraybuffer"
+        });
+        const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+        const fileName = resolveFileNameFromHeaders(response, `migration-full-${stamp}.sql`);
+        downloadBytes(response.data, fileName, response.headers?.["content-type"]);
+        Message.success(`全量迁移脚本「${fileName}」已开始下载`);
+    } catch (error) {
+        console.error(error);
+        Message.error(readDownloadError(error, "生成全量迁移脚本失败，请稍后重试。"));
+    } finally {
+        loading.close();
+    }
 }
 
 function renderRows() {
@@ -115,13 +246,14 @@ function renderRows() {
           deleteBtn.textContent = "删除";
           deleteBtn.style.display = "none";
           const generateScriptBtn = document.createElement("button");
-          deleteBtn.type = "button";
-          deleteBtn.className = "btn btn-sm btn-outline-info js-info";
-          deleteBtn.dataset.id = item.id;
-          deleteBtn.dataset.name = item.name;
-          deleteBtn.textContent = "生成迁移脚本";
-          deleteBtn.addEventListener("click", () => GenerateMigrationScript(item));
-          actionTd.append(applyBtn, deleteBtn);
+          generateScriptBtn.type = "button";
+          generateScriptBtn.className = "btn btn-sm btn-outline-success js-info";
+          generateScriptBtn.dataset.id = item.id;
+          generateScriptBtn.dataset.name = item.name;
+          generateScriptBtn.textContent = "迁移";
+          generateScriptBtn.title = "生成该迁移的增量 SQL 脚本（仅包含这一条迁移的变更）";
+          generateScriptBtn.addEventListener("click", () => GenerateMigrationScript(item));
+          actionTd.append(applyBtn, deleteBtn, generateScriptBtn);
           row.append(idTd, nameTd, createTimeTd, fileNameTd, applyTimeTd, actionTd);
           tableBody.appendChild(row);
           rowElements.push(row);
@@ -327,6 +459,10 @@ async function deleteMigration(id, name) {
 }
 
 addBtn.addEventListener("click", openCreateModal);
+
+if (generateAllBtn) {
+    generateAllBtn.addEventListener("click", generateAllMigrationScript);
+}
 
 pageSizeSelect.addEventListener("change", async () => {
     pageSize = Number(pageSizeSelect.value);
